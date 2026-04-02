@@ -1,0 +1,31 @@
+{
+  "name": "datastargostrictcsp",
+  "version": "1.0.0",
+  "description": "![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go&logoColor=white) ![Datastar](https://img.shields.io/badge/Datastar-1.0.0--RC.8-blueviolet?style=flat)",
+  "main": "datastargostrictcsp-client.js",
+  "directories": {
+    "example": "example"
+  },
+  "scripts": {
+    "copy": "cp client/datastargostrictcsp-client.js dist/datastargostrictcsp-client.js",
+    "minify": "esbuild dist/datastargostrictcsp-client.js --minify --sourcemap --outfile=dist/datastargostrictcsp-client.min.js",
+    "strip-nonce": "sed '/\\/\\/ <nonce_check>/,/\\/\\/ <\\/nonce_check>/d' dist/datastargostrictcsp-client.js > dist/datastargostrictcsp-client.lite.js",
+    "minify-lite": "esbuild dist/datastargostrictcsp-client.lite.js --minify --sourcemap --outfile=dist/datastargostrictcsp-client.lite.min.js",
+    "build": "npm run copy && npm run minify && npm run strip-nonce && npm run minify-lite"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/addrummond/datastargostrictcsp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/addrummond/datastargostrictcsp/issues"
+  },
+  "homepage": "https://github.com/addrummond/datastargostrictcsp#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

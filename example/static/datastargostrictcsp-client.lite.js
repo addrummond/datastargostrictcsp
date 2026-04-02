@@ -1,0 +1,1 @@
+../../dist/datastargostrictcsp-client.lite.js

@@ -1,0 +1,227 @@
+{{define "page"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Datastar Demo</title>
+  <script src="/static/{{if .Lite}}datastargostrictcsp-client.lite.js{{else}}datastargostrictcsp-client.js{{end}}"></script>
+  <script src="/static/pwnmatic.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.8/bundles/datastar.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --border:  #334155;
+      --text:    #e2e8f0;
+      --muted:   #94a3b8;
+      --accent:  #6366f1;
+      --accent2: #4f46e5;
+      --danger:  #ef4444;
+      --green:   #22c55e;
+      --r:       8px;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 2.5rem; }
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
+    header p  { color: var(--muted); margin-top: .4rem; font-size: .95rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 1.5rem;
+    }
+    .card h2 {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 1.25rem;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--r);
+      padding: .45rem .9rem;
+      font-size: .875rem;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    button:hover:not([disabled]) { background: var(--accent2); }
+    button[disabled] { opacity: .35; cursor: not-allowed; }
+    input[type="text"], textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--text);
+      padding: .45rem .75rem;
+      font-size: .875rem;
+      font-family: inherit;
+    }
+    input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+    /* counter */
+    .counter-num {
+      font-size: 5rem; font-weight: 700; text-align: center;
+      display: block; line-height: 1; margin: .75rem 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .counter-btns { display: flex; gap: .5rem; justify-content: center; }
+    .counter-btns .big { font-size: 1.25rem; padding: .3rem .85rem; }
+    .hint { margin-top: .75rem; font-size: .8rem; color: var(--muted); text-align: center; }
+
+    /* text analyzer */
+    textarea { resize: vertical; margin-bottom: 1rem; }
+    .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: .75rem; }
+    .stat {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--r); padding: .75rem .5rem; text-align: center;
+    }
+    .stat-val {
+      font-size: 1.75rem; font-weight: 700; color: var(--accent);
+      display: block; font-variant-numeric: tabular-nums;
+    }
+    .stat-lbl { font-size: .72rem; color: var(--muted); }
+
+    /* todos */
+    .add-row { display: flex; gap: .5rem; margin-bottom: 1rem; }
+    .add-row input { flex: 1; }
+    .todo-item {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .5rem 0; border-bottom: 1px solid var(--border);
+    }
+    .todo-item:last-child { border-bottom: none; }
+    .todo-item.done .todo-text { text-decoration: line-through; color: var(--muted); }
+    .todo-text { flex: 1; font-size: .875rem; }
+    .del-btn {
+      background: transparent; color: var(--muted);
+      padding: .2rem .5rem; font-size: 1.1rem; line-height: 1;
+    }
+    .del-btn:hover:not([disabled]) { background: var(--danger); color: #fff; }
+    input[type="checkbox"] {
+      width: 1rem; height: 1rem; cursor: pointer;
+      accent-color: var(--green); flex-shrink: 0;
+    }
+    .empty { color: var(--muted); font-size: .875rem; text-align: center; padding: 1rem 0; }
+
+    /* clock */
+    #clock-display { text-align: center; padding: 1.25rem 0; }
+    .clock-time {
+      font-size: 3rem; font-weight: 700; font-family: monospace;
+      display: block; font-variant-numeric: tabular-nums; letter-spacing: .05em;
+    }
+    .clock-date { color: var(--muted); font-size: .875rem; margin-top: .4rem; display: block; }
+  </style>
+</head>
+<body>
+  <div class="container" data-signals="{count: 0, newTodo: '', newTodo2: '', text: ''}">
+    <header>
+      <h1>Datastar Demo</h1>
+      <p>Interactive SSE + reactive signals example</p>
+    </header>
+
+    <div class="grid">
+
+      <!-- Counter: server manages count, signals keep UI in sync -->
+      <div class="card">
+        <h2>Counter</h2>
+        <span class="counter-num" data-text="$count">0</span>
+        <div class="counter-btns">
+          <button class="big" data-on:click="@post('/api/counter/decrement')">−</button>
+          <button data-on:click="@post('/api/counter/reset')">Reset</button>
+          <button class="big" data-on:click="@post('/api/counter/increment')">+</button>
+        </div>
+        <p class="hint" data-show="$count >= 10" style="display:none">Getting high!</p>
+        <p class="hint" data-show="$count < 0" style="display:none">Negative territory!</p>
+      </div>
+
+      <!-- Text Analyzer: purely client-side via data-computed signals -->
+      <div class="card"
+           data-computed:wc="$text.trim()===''?0:$text.trim().split(/\s+/).length"
+           data-computed:lc="$text===''?0:$text.split('\n').length">
+        <h2>Text Analyzer</h2>
+        <textarea data-bind:text placeholder="Start typing…" rows="5"></textarea>
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-val" data-text="$text.length">0</span>
+            <span class="stat-lbl">Chars</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val" data-text="$wc">0</span>
+            <span class="stat-lbl">Words</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val" data-text="$lc">0</span>
+            <span class="stat-lbl">Lines</span>
+          </div>
+        </div>
+        <p class="hint" data-show="$text.length > 150" style="display:none">Quite a bit of text!</p>
+      </div>
+
+      <!-- Todo List: server-side state, fragments keep DOM in sync -->
+      <div class="card">
+        <h2>Todo List</h2>
+        <div class="add-row">
+          <input type="text" data-bind:new-todo placeholder="What needs to be done?"
+                 data-on:keydown="evt.key==='Enter'&&@post('/api/todos')" />
+          <button data-attr:disabled="$newTodo.trim()===''?true:null"
+                  data-on:click="@post('/api/todos')">Add</button>
+        </div>
+        {{template "todoList" .}}
+      </div>
+
+      <!-- Todo List (non-SSE): tests HTMLMiddleware — handlers return text/html -->
+      <div class="card">
+        <h2>Todo List (non-SSE handlers)</h2>
+        <div class="add-row">
+          <input type="text" data-bind:new-todo2 placeholder="What needs to be done?"
+                 data-on:keydown="evt.key==='Enter'&&@post('/api/todos-plain')" />
+          <button data-attr:disabled="$newTodo2.trim()===''?true:null"
+                  data-on:click="@post('/api/todos-plain')">Add</button>
+        </div>
+        <div id="todo-plain-list" data-init="@get('/api/todos-plain')"></div>
+      </div>
+
+      <!-- Live Clock: SSE streaming patches the DOM every second -->
+      <div class="card" data-init="@get('/api/clock')">
+        <h2>Live Clock</h2>
+        <div id="clock-display">
+          <span class="clock-time">--:--:--</span>
+          <span class="clock-date">Connecting…</span>
+        </div>
+      </div>
+
+      <!-- Pwnmatic 9000: innerHTML injection demo -->
+      <div class="card">
+        <h2>Pwnmatic 9000</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;">
+          Inject arbitrary HTML into the box below via <code>innerHTML</code> — the classic
+          DOM XSS vector. Try pasting HTML with a Datastar expression that exists elsewhere on this page.
+          {{if .Lite}}Blessed element checks mean{{else}}Nonce protection means{{end}} it will be ignored even though it is already precompiled.
+        </p>
+        <textarea id="pwn-input" rows="3"
+                  placeholder="&lt;button data-on:click=&quot;@post('/api/counter/increment')&quot;&gt;+1&lt;/button&gt;"
+                  style="margin-bottom:.5rem;"></textarea>
+        <button id="pwn-btn" style="margin-bottom:.5rem;">Inject</button>
+        <div id="pwn-target"
+             style="min-height:3rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);font-size:.875rem;"></div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>{{end}}

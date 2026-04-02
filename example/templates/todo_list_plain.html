@@ -1,0 +1,16 @@
+{{define "todoListPlain"}}
+<div id="todo-plain-list">
+{{- if .Todos}}
+{{- range .Todos}}
+<div class="todo-item{{if .Completed}} done{{end}}" id="todo-plain-{{.ID}}">
+  <input type="checkbox"{{if .Completed}} checked{{end}}
+         data-on:change="@put('/api/todos-plain/{{.ID}}')">
+  <span class="todo-text">{{.Text}}</span>
+  <button class="del-btn" data-on:click="@delete('/api/todos-plain/{{.ID}}')">&#215;</button>
+</div>
+{{- end}}
+{{- else}}
+<p class="empty">No todos yet — add one above!</p>
+{{- end}}
+</div>
+{{end}}

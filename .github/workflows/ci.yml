@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read Go version from .tool-versions
+        id: goversion
+        run: echo "version=$(grep '^golang ' .tool-versions | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.goversion.outputs.version }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+
+      - run: npm ci
+
+      - name: vet
+        run: go vet ./...
+
+      - name: build
+        run: go build ./...
+
+      - name: test
+        run: go test ./...
+
+  check-dist:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Verify dist files are up to date
+        run: |
+          if ! git diff --exit-code dist/datastargostrictcsp-client.js dist/datastargostrictcsp-client.min.js dist/datastargostrictcsp-client.min.js.map dist/datastargostrictcsp-client.lite.js dist/datastargostrictcsp-client.lite.min.js dist/datastargostrictcsp-client.lite.min.js.map; then
+            echo "::error::dist files are out of date — run 'npm run build' and commit the result"
+            exit 1
+          fi
