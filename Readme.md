@@ -22,7 +22,7 @@ Datastar compiles expressions down to invocations of the JavaScript `Function` c
 new Function("el", "$", "__action", "evt", "return el.id")
 ```
 
-This module sidesteps that with a Go-side precompiler:
+This module sidesteps that with a Go precompiler:
 
 1. **Reimplements** Datastar's expression compiler in Go (~150 LOC).
 2. **Middleware** scans HTML pages/fragments and collates Datastar expressions (respecting the `data-ignore` attribute).
