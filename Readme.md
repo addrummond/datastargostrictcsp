@@ -27,7 +27,7 @@ This module sidesteps that with a Go precompiler:
 
 1. **Reimplements** Datastar's expression compiler in Go (~150 LOC).
 2. **Middleware** scans HTML pages/fragments and collates Datastar expressions (respecting the `data-ignore` attribute).
-3. A **signed URL** keyed by the relevant expressions is delivered to the client together with the HTML.
+3. A **signed URL** containing the relevant expressions is delivered to the client together with the HTML.
 4. **A GET request** to the signed URL returns a JavaScript source file with a compiled expression lookup table.
 5. The **`Function`** constructor is monkey patched to use the lookup table.
 
