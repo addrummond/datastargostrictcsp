@@ -100,10 +100,9 @@ To run over https and HTTP 2:
 
 Without https, the connection will use HTTP 1.1. Limits on the maximum number of simultaneous connections may cause some initial SSE connection errors to show in the console.
 
-By default, the example app runs with nonce checks enabled on the client. 
-If you want to try the app with nonce checks disabled (which is the more typical scenario), then
-go to `http://localhost:8080/?lite=true`. For more information on nonce checks,
-see 'Adding nonces for extra protection' below.
+By default, the example app runs without client-side nonce checks (the more typical scenario).
+To try the app with client-side nonce checks enabled, go to `http://localhost:8080/?lite=false`.
+For more information on nonce checks, see 'Adding nonces for extra protection' below.
 
 ## Security
 

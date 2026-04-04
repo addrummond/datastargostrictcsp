@@ -94,7 +94,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	mu.Unlock()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	data := templateData{Todos: ts, Nonce: datastargostrictcsp.NonceFromContext(r.Context()), Lite: r.URL.Query().Get("lite") != ""}
+	data := templateData{Todos: ts, Nonce: datastargostrictcsp.NonceFromContext(r.Context()), Lite: r.URL.Query().Get("lite") != "false"}
 	if err := tmpl.ExecuteTemplate(w, "page", data); err != nil {
 		log.Println("template:", err)
 	}
