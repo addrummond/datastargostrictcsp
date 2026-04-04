@@ -41,9 +41,7 @@ The signed URL reaches the client in one of three ways:
 
 **URL length:** Signed URLs can carry many expressions in query params. If a URL would exceed 2000 bytes, the server automatically splits it into multiple URLs. (An individual Datastar expression cannot be split across multiple URLs, so don't write ludicrously humungous expressions.)
 
-## Usage
-
-### How should I set up my Content-Security policy?
+## Getting started
 
 **1.** Add a Content Security Policy **without** `unsafe-inline` or `unsafe-eval`.
 
