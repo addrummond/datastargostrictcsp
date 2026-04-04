@@ -109,11 +109,11 @@ For more information on nonce checks, see [Adding nonces for extra protection](#
 
 ### The default configuration
 
-With `datastargostrictcsp`'s default configuration:
+With datastar-go-strict-csp's default configuration:
 
 - Datastar works without `unsafe-inline` or `unsafe-eval` in your CSP.
 - Precompiled expressions are only obtainable via backend-signed URLs.
-- The `datastargostrictcsp` client adds some protection against client-side injection of Datastar attributes. (It tracks which DOM elements were either created on the initial page render or inserted via a Datastar DOM patching operation, and ensures that Datastar attributes on other elements are ignored.)
+- The datastar-go-strict-csp client adds some protection against client-side injection of Datastar attributes. (It tracks which DOM elements were either created on the initial page render or inserted via a Datastar DOM patching operation, and ensures that Datastar attributes on other elements are ignored.)
 - Even if an attacker succeeds in injecting Datastar attributes on the client side, they are limited to injecting existing pre-compiled attributes.
 
 ⚠️ That said, the default config does leave a **server-side injection** attack vector open.
@@ -177,9 +177,9 @@ func renderFragment(r *http.Request) string {
 
 ### Should I go to the trouble of adding nonces?
 
-Probably not! `datastargostrictcsp` will let you be a an obsessive CSP weenie if you want – but is that who you are?
+Probably not! datastar-go-strict-csp will let you be a an obsessive CSP weenie if you want – but is that who you are?
 
-`datastargostrictcsp` already mitigates client-side attribute injection attacks by maintaining a set of 'blessed' DOM nodes. 
+datastar-go-strict-csp already mitigates client-side attribute injection attacks by maintaining a set of 'blessed' DOM nodes. 
 
 Server-side injection attacks are best avoided by (i) using any sane templating system and (ii) being careful in the rare few cases where you intentionally substitute untrusted HTML into a page. If you care enough to be reading this, then you're almost certainly not going to screw this up.
 
