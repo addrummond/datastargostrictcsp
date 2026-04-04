@@ -124,7 +124,7 @@ The mitigation for server-side injection is, of course, exactly what you should 
 
 ### Adding nonces for extra protection
 
-**_Adding nonces is arguably a bit over the top. See end of this section for why._**
+**_Adding nonces is arguably a bit over the top. See [Should I go to the trouble of adding nonces?](#should-i-go-to-the-trouble-of-adding-nonces)._**
 
 ℹ️ To enable nonce checks, you'll need to use `dist/datastargostrictcsp-client.js` rather than `dist/datastargostrictcsp-client.lite.js`.
 
@@ -176,15 +176,15 @@ func renderFragment(r *http.Request) string {
 }
 ```
 
-> **Should I go to the trouble of adding nonces?**
->
-> Probably not! `datastargostrictcsp` will let you be a an obsessive CSP weenie if you want – but is that who you are?
->
-> `datastargostrictcsp` already mitigates client-side attribute injection attacks by maintaining a set of 'blessed' DOM nodes. 
->
-> Server-side injection attacks are best avoided by (i) using any sane templating system and (ii) being careful in the rare few cases where you intentionally substitute untrusted HTML into a page. If you care enough to be reading this, then you're almost certainly not going to screw this up.
->
-> It might make sense to *selectively* use nonces when rendering especially sensitive or risky pages. Nonce protection is opt-in at the middleware level: use `MiddlewareWithNonce` for routes where you want it, and plain `Middleware` for routes where you don't.
+### Should I go to the trouble of adding nonces?
+
+Probably not! `datastargostrictcsp` will let you be a an obsessive CSP weenie if you want – but is that who you are?
+
+`datastargostrictcsp` already mitigates client-side attribute injection attacks by maintaining a set of 'blessed' DOM nodes. 
+
+Server-side injection attacks are best avoided by (i) using any sane templating system and (ii) being careful in the rare few cases where you intentionally substitute untrusted HTML into a page. If you care enough to be reading this, then you're almost certainly not going to screw this up.
+
+It might make sense to *selectively* use nonces when rendering especially sensitive or risky pages. Nonce protection is opt-in at the middleware level: use `MiddlewareWithNonce` for routes where you want it, and plain `Middleware` for routes where you don't.
 
 ## Signing key rotation
 
