@@ -2,3 +2,4 @@ node_modules
 example/localhost.pem
 example/localhost-key.pem
 example/datastargostrictcsp-example
+example/tmp

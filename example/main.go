@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"embed"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"html/template"
@@ -16,8 +18,14 @@ import (
 
 	"github.com/addrummond/datastargostrictcsp"
 
+	"github.com/air-verse/air/runner"
 	"github.com/starfederation/datastar-go/datastar"
 )
+
+var airReloadScriptHash = func() string {
+	h := sha256.Sum256([]byte(runner.ProxyScript))
+	return base64.StdEncoding.EncodeToString(h[:])
+}()
 
 // ── data model ────────────────────────────────────────────────────────────────
 
@@ -72,8 +80,9 @@ var tmpl = func() *template.Template {
 
 // ── middleware ─────────────────────────────────────────────────────────────────
 
-const csp = "default-src 'self'; " +
-	"script-src 'self' https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.8/bundles/datastar.js; " +
+var csp = "default-src 'self'; " +
+	"script-src 'self' https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.8/bundles/datastar.js " +
+	"'sha256-" + airReloadScriptHash + "'; " +
 	"style-src 'self' 'unsafe-inline'; " +
 	"connect-src 'self' https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.8/bundles/datastar.js.map;"
 
@@ -83,7 +92,6 @@ func cspMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
 
 // ── handlers ──────────────────────────────────────────────────────────────────
 
@@ -392,8 +400,8 @@ func main() {
 	mux.HandleFunc("GET /api/clock", handleClock)
 
 	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: cspMiddleware(pc.MiddlewareWithNonce(mux)),
+		Addr:              ":8080",
+		Handler:           cspMiddleware(pc.MiddlewareWithNonce(mux)),
 		ReadTimeout:       15 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
