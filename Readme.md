@@ -179,7 +179,7 @@ func renderFragment(r *http.Request) string {
 
 Probably not! datastar-go-strict-csp will let you be a an obsessive CSP weenie if you want – but is that who you are?
 
-The default configuration already mitigates client-side attribute injection attacks by maintaining a set of 'blessed' DOM nodes. 
+The default configuration already mitigates client-side attribute injection attacks by maintaining a set of 'blessed' DOM nodes, and by restricting the blast radius of such attacks to injection of existing pre-compiled expressions.
 
 Server-side injection attacks are best avoided by (i) using any sane templating system and (ii) being careful in the rare few cases where you intentionally substitute untrusted HTML into a page. If you care enough to be reading this, then you're almost certainly not going to screw this up.
 
