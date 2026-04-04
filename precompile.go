@@ -35,17 +35,12 @@ import (
 // in the Content-Security-Policy.
 //
 // Set Key to a 32-byte secret before use. Use a persistent secret in
-// production so cached script URLs remain valid across restarts; a random
-// value generated at startup is fine for development.
+// production so cached script URLs remain valid across restarts.
 //
 // OldKeys lists previously active signing keys that are still accepted during
 // verification. See the 'Key rotation' section of the README for usage.
-// Short version: for planned rotation, add the old Key to OldKeys before
-// swapping in the new one; for a compromised key, leave OldKeys empty and
-// accept that clients with cached URLs signed by the old key will see a
-// one-time error until they reload.
 //
-// ScriptPath is the URL path at which ScriptHandler is mounted. It defaults
+// ScriptPath specifies where ScriptHandler is mounted. It defaults
 // to "/ds-precompile.js" if empty.
 //
 // MaxURLLen is the maximum length of a generated script URL. When the signed
@@ -157,7 +152,7 @@ var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 
 // ScriptHandler returns an http.Handler that verifies signed expression
 // parameters and serves a cacheable JS file that registers the corresponding
-// functions in window.__datastar_precompiled_expressions.
+// functions.
 func (p *Precompiler) ScriptHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -223,7 +218,7 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry, nonce string) (
 type skipKey struct{}
 
 // Skip wraps a handler so that Middleware passes its response through without
-// any precompile processing or buffering. Use it for routes within a
+// any processing. Use it for routes within a
 // Middleware-wrapped mux that serve large HTML responses with no Datastar
 // expressions, or streaming responses where buffering would be inappropriate.
 // Handlers that return non-HTML content types (JSON, JS, images, …) are
@@ -243,7 +238,7 @@ func Skip(next http.Handler) http.Handler {
 //     script before Datastar applies the patch.
 //   - text/html (full page): injects <script src="..."> tags before </head>.
 //   - text/html (fragment): prepends a <!-- precompile-url: ... --> comment.
-//   - anything else (JS, images, …): passed through without buffering.
+//   - anything else (JS, images, …): passed through.
 //
 // A single Middleware wrapping the whole mux is sufficient; there is no need
 // to distinguish between HTML and SSE routes. Wrap individual handlers with
@@ -264,7 +259,7 @@ func (p *Precompiler) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// MiddlewareWithNonce is like Middleware but generates a fresh nonce for each
+// MiddlewareWithNonce is like Middleware, but generates a fresh nonce for each
 // request and stores it in the request context. Templates can retrieve it with
 // NonceFromContext(r.Context()).
 func (p *Precompiler) MiddlewareWithNonce(next http.Handler) http.Handler {

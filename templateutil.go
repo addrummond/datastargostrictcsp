@@ -13,8 +13,8 @@ import (
 // data-ignore subtree are left untouched.
 //
 // nonceExpr is inserted literally as the attribute value, so pass a Go
-// template expression such as "{{$.Nonce}}". Prefer {{$.Nonce}} over
-// {{.Nonce}} to ensure the nonce is always resolved from the root data.
+// template expression such as "{{$.Nonce}}". (Prefer {{$.Nonce}} over
+// {{.Nonce}} to ensure the nonce is always resolved from the root data.)
 func AddNonceToTemplate(tmplSrc, nonceExpr string) string {
 	src := []byte(tmplSrc)
 	var out bytes.Buffer
