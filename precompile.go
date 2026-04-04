@@ -527,7 +527,7 @@ func scanHTML(body []byte, nonce string) []precompileEntry {
 					variants = []bool{true, false}
 				}
 				for _, isValue := range variants {
-					funcArgs := genRxCached(a.val, GenRxOptions{ReturnsValue: isValue, ArgNames: attr.ArgNames})
+					funcArgs := genRxCached(a.val, genRxOptions{ReturnsValue: isValue, ArgNames: attr.ArgNames})
 					if primaryJSON, err := json.Marshal(funcArgs); err == nil {
 						if k := string(primaryJSON); !seen[k] {
 							seen[k] = true

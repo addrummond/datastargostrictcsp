@@ -17,7 +17,7 @@ import (
 
 // runGenJS executes the reference JS implementation in test_support/gen.js via
 // node and returns its result. The test is skipped if node is not in PATH.
-func runGenJS(t *testing.T, value string, opts GenRxOptions) []string {
+func runGenJS(t *testing.T, value string, opts genRxOptions) []string {
 	t.Helper()
 
 	if _, err := exec.LookPath("node"); err != nil {
@@ -67,118 +67,118 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 	tests := []struct {
 		name  string
 		value string
-		opts  GenRxOptions
+		opts  genRxOptions
 	}{
 		// ── signal access ─────────────────────────────────────────────────────
 		{
 			name:  "simple signal read",
 			value: "$count",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "simple signal statement",
 			value: "$count++",
-			opts:  GenRxOptions{ReturnsValue: false},
+			opts:  genRxOptions{ReturnsValue: false},
 		},
 		{
 			name:  "nested signal path",
 			value: "$foo.bar",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "hyphenated signal name",
 			value: "$my-signal",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "hyphenated nested path",
 			value: "$foo.bar-baz",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "multiple signals in expression",
 			value: "$a + $b",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "signal assignment",
 			value: "$count = $count + 1",
-			opts:  GenRxOptions{ReturnsValue: false},
+			opts:  genRxOptions{ReturnsValue: false},
 		},
 
 		// ── string/template literals ──────────────────────────────────────────
 		{
 			name:  "signal inside double-quoted string not transformed",
 			value: `"$foo"`,
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "signal inside single-quoted string not transformed",
 			value: `'$foo'`,
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "template literal with signal interpolation",
 			value: "`value: ${$count}`",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "template literal with nested signal path in interpolation",
 			value: "`${$foo.bar}`",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 
 		// ── actions ───────────────────────────────────────────────────────────
 		{
 			name:  "action with string arg",
 			value: "@post('/api/counter/increment')",
-			opts:  GenRxOptions{ReturnsValue: false},
+			opts:  genRxOptions{ReturnsValue: false},
 		},
 		{
 			name:  "action with signal arg",
 			value: "@toggle($open)",
-			opts:  GenRxOptions{ReturnsValue: false},
+			opts:  genRxOptions{ReturnsValue: false},
 		},
 		{
 			name:  "action with multiple args",
 			value: "@setItem($key, $value)",
-			opts:  GenRxOptions{ReturnsValue: false},
+			opts:  genRxOptions{ReturnsValue: false},
 		},
 
 		// ── multiple statements ───────────────────────────────────────────────
 		{
 			name:  "multiple statements return added to last",
 			value: "$a++; $b = $a",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "explicit return left alone",
 			value: "$x > 0; return $x",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 
 		// ── extra argNames ────────────────────────────────────────────────────
 		{
 			name:  "extra argName (on-signal-patch style)",
 			value: "$count = patch.value",
-			opts:  GenRxOptions{ReturnsValue: true, ArgNames: []string{"patch"}},
+			opts:  genRxOptions{ReturnsValue: true, ArgNames: []string{"patch"}},
 		},
 
 		// ── miscellaneous ─────────────────────────────────────────────────────
 		{
 			name:  "boolean expression",
 			value: "$visible && $count > 0",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "ternary",
 			value: "$open ? 'yes' : 'no'",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
 			name:  "bare true literal",
 			value: "true",
-			opts:  GenRxOptions{ReturnsValue: true},
+			opts:  genRxOptions{ReturnsValue: true},
 		},
 	}
 

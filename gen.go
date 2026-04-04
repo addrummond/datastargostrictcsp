@@ -29,7 +29,7 @@ type genRxEntry struct {
 	result []string
 }
 
-func genRxCached(value string, opts GenRxOptions) []string {
+func genRxCached(value string, opts genRxOptions) []string {
 	key := genRxKey{
 		value:        value,
 		returnsValue: opts.ReturnsValue,
@@ -103,13 +103,13 @@ func signalToBracket(name string) string {
 	return result
 }
 
-type GenRxOptions struct {
+type genRxOptions struct {
 	ReturnsValue bool
 	ArgNames     []string
 }
 
 // Compare https://github.com/starfederation/datastar/blob/5f43d33ee55b17ebb254b9d7115f39c852159169/library/src/engine/engine.ts#L373
-func genRx(value string, opts GenRxOptions) []string {
+func genRx(value string, opts genRxOptions) []string {
 	var expr string
 
 	if opts.ReturnsValue {
