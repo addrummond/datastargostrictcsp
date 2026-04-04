@@ -104,7 +104,7 @@ If you have Go ≥ 1.25, you can install [`air`](https://github.com/air-verse/ai
 
 By default, the example app runs without client-side nonce checks (the more typical scenario).
 To try the app with client-side nonce checks enabled, go to `http://localhost:8080/?lite=false`.
-For more information on nonce checks, see 'Adding nonces for extra protection' below.
+For more information on nonce checks, see [Adding nonces for extra protection](#adding-nonces-for-extra-protection).
 
 ## Security
 
