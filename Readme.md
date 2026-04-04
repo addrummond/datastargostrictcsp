@@ -100,6 +100,8 @@ To run over https and HTTP 2:
 
 Without https, the connection will use HTTP 1.1. Limits on the maximum number of simultaneous connections may cause some initial SSE connection errors to show in the console.
 
+If you have Go ≥ 1.25, you can install [`air`](https://github.com/air-verse/air) with `go mod download` and then run `go tool air` to start the example app with auto-reload-on-change functionality enabled. Go to `http://localhost:8090` (not 8080).
+
 By default, the example app runs without client-side nonce checks (the more typical scenario).
 To try the app with client-side nonce checks enabled, go to `http://localhost:8080/?lite=false`.
 For more information on nonce checks, see 'Adding nonces for extra protection' below.
