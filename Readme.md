@@ -66,8 +66,8 @@ mux.Handle("GET /ds-precompile.js", pc.ScriptHandler())
 
 // Register all your handlers normally.
 mux.HandleFunc("GET /{$}", handleIndex)
-mux.HandleFunc("POST /api/todos", handleTodosAdd)   // SSE handler — detected automatically
-mux.HandleFunc("GET /api/feed", handleFeed)         // non-Datastar HTML — buffered harmlessly
+mux.HandleFunc("POST /api/todos", handleTodosAdd)
+mux.HandleFunc("GET /api/feed", handleFeed)
 
 // Wrap the whole mux once at the server level.
 // Use pc.MiddlewareWithNonce(mux) instead if you are using nonces
