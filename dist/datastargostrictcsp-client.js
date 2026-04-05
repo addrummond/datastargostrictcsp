@@ -48,9 +48,7 @@
     bloomOp(cur, nonce, true);
     active = true;
   };
-  // </nonce_check>
 
-  // <nonce_check>
   let lastNonce = ""; // fast path: skip bloom lookup when nonce matches last valid hit
   // </nonce_check>
 

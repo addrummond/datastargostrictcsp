@@ -1,6 +1,5 @@
 (() => {
 
-
   // Blessed-element registry
   //
   // Every element present in the initial page HTML is "blessed" at
