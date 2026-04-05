@@ -29,7 +29,7 @@ This module sidesteps that with a Go precompiler:
 2. **Middleware** scans HTML pages/fragments and collates Datastar expressions (respecting the `data-ignore` attribute).
 3. A **signed URL** containing the relevant expressions is delivered to the client together with the HTML.
 4. A GET request to the signed URL returns JavaScript with a **pre-compiled expression lookup table**.
-5. The **`Function`** constructor is monkey patched to use the lookup table.
+5. The datastar-go-strict-csp client library **monkey-patches `Function`** to use the lookup table.
 
 The signed URL reaches the client in one of three ways:
 
