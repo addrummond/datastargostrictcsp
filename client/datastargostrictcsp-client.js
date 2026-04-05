@@ -1,4 +1,4 @@
-(function () {
+(() => {
   // <nonce_check>
   // Nonce bloom filter
   //
@@ -76,7 +76,7 @@
 
   // Start observing immediately (document.documentElement exists even in
   // <head>) so we catch any patches that fire at DOMContentLoaded.
-  const mo = new MutationObserver(function (records) {
+  const mo = new MutationObserver((records) => {
     if (!blessingEnabled) return;
     for (const r of records) {
       for (const node of r.addedNodes) {
@@ -178,7 +178,7 @@
     const key = urlKey(url);
     if (loadedScripts.has(key)) return Promise.resolve();
     loadedScripts.add(key);
-    return new Promise(function (resolve) {
+    return new Promise((resolve) => {
       const s = document.createElement("script");
       s.src = url;
       s.onload = resolve;
@@ -189,7 +189,7 @@
 
   const COMMENT_RE = /^<!--\s*precompile-url:\s*(.*?)\s*-->\n?/;
 
-  document.addEventListener("datastar-fetch", function (evt) {
+  document.addEventListener("datastar-fetch", (evt) => {
     if (evt.detail.type !== "datastar-patch-elements") return;
     const argsRaw = evt.detail.argsRaw;
 
@@ -210,7 +210,7 @@
 
     evt.stopImmediatePropagation();
 
-    Promise.all(urls.map(loadScript)).then(function () {
+    Promise.all(urls.map(loadScript)).then(() => {
       blessingEnabled = true;
       document.dispatchEvent(
         new CustomEvent("datastar-fetch", {
@@ -224,7 +224,7 @@
       // MutationObserver callbacks are microtasks; setTimeout (macrotask)
       // fires after them, so newly patched elements are blessed before we
       // close the window.
-      setTimeout(function () {
+      setTimeout(() => {
         blessingEnabled = false;
       }, 0);
     });
