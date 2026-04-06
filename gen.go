@@ -79,7 +79,6 @@ var (
 		regexp.QuoteMeta(dsp) + `(.*?)` + regexp.QuoteMeta(dss),
 	)
 
-	// Go stdlib regex engine can't handle negative lookaheads, so use regexp2 for this one.
 	signalRe = regexp.MustCompile(
 		`("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|` +
 			// We can't do negative lookahead with the Go regexp stdlib, so we add
