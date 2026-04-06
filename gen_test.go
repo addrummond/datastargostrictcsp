@@ -81,6 +81,11 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 			opts:  genRxOptions{ReturnsValue: false},
 		},
 		{
+			name:  "simple signal statement decrement",
+			value: "$count--",
+			opts:  genRxOptions{ReturnsValue: false},
+		},
+		{
 			name:  "nested signal path",
 			value: "$foo.bar",
 			opts:  genRxOptions{ReturnsValue: true},
@@ -91,8 +96,48 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
+			name:  "hyphenated signal name foo-bar",
+			value: "$foo-bar",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
 			name:  "hyphenated nested path",
 			value: "$foo.bar-baz",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "two signals separated by hyphen",
+			value: "$foo-$bar",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "bracket access with signal index",
+			value: "$arr[$index]",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "already bracket notation",
+			value: "$['foo']",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "bracket access with non-signal expression",
+			value: "$foo[obj.bar]",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "bracket access with string containing dot",
+			value: "$foo['bar.baz']",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "numeric signal name",
+			value: "$123",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "path with numeric segment",
+			value: "$foo.0.name",
 			opts:  genRxOptions{ReturnsValue: true},
 		},
 		{
