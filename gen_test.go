@@ -29,9 +29,7 @@ func runGenJS(t *testing.T, value string, opts genRxOptions) []string {
 		t.Fatalf("could not read test_support/gen.js: %v", err)
 	}
 
-	// Strip the trailing console.log line and append our own call.
-	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
-	src := strings.Join(lines[:len(lines)-1], "\n")
+	src := strings.TrimRight(string(raw), "\n")
 
 	argNames := opts.ArgNames
 	if argNames == nil {
@@ -223,6 +221,21 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 		{
 			name:  "bare true literal",
 			value: "true",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "${} only inside `` literal",
+			value: "`${foo} ${bar} ${amp}`",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "$foo only ",
+			value: "`$foo $bar $amp`",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
+		{
+			name:  "mixed ${} and $ inside `` literal",
+			value: "`${foo} $bar $amp`",
 			opts:  genRxOptions{ReturnsValue: true},
 		},
 	}

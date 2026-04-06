@@ -25,7 +25,7 @@ new Function("el", "$", "__action", "evt", "return el.id")
 
 This module sidesteps that with a Go precompiler:
 
-1. **Reimplements** Datastar's expression compiler in Go (~150 LOC).
+1. **Reimplements** Datastar's expression compiler in Go (~200 LOC).
 2. **Middleware** scans HTML pages/fragments and collates Datastar expressions (respecting the `data-ignore` attribute).
 3. A **signed URL** containing the relevant expressions is delivered to the client together with the HTML.
 4. A GET request to the signed URL returns JavaScript with a **pre-compiled expression lookup table**.

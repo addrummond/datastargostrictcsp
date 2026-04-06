@@ -106,4 +106,13 @@ const genRx = (
   return ["el", "$", "__action", "evt", ...argNames, expr];
 };
 
-console.log(genRx("@post('/api/counter/increment')"));
+if (require.main === module) {
+  let input = "";
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", (chunk) => {
+    input += chunk;
+  });
+  process.stdin.on("end", () => {
+    process.stdout.write(JSON.stringify(genRx(input.trim())) + "\n");
+  });
+}

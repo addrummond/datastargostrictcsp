@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/dlclark/regexp2"
 )
 
 const genRxCacheMax = 512
@@ -82,12 +80,17 @@ var (
 	)
 
 	// Go stdlib regex engine can't handle negative lookaheads, so use regexp2 for this one.
-	signalRe = regexp2.MustCompile(
-		`("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`+
-			"`"+`(?:\\.|[^`+"`"+`\\$]|\$(?!\{))*`+"`"+
+	signalRe = regexp.MustCompile(
+		`("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|` +
+			// We can't do negative lookahead with the Go regexp stdlib, so we add
+			// some additional code in genRx to compensate for the removal of (?!\{)
+			// from the original regex.
+			//"`" + `(?:\\.|[^` + "`" + `\\$]|\$(?!\{))*` + "`" +
+			"`" + `(?:\\.|[^` + "`" + `\\$]|\$)*` + "`" +
 			`)|\$\{([^{}]*)\}|\$([a-zA-Z_\d]\w*(?:[-.]\w+)*)`,
-		0,
 	)
+
+	dollarBrace = regexp.MustCompile(`\$\{`)
 
 	innerSignalRe = regexp.MustCompile(`\$([a-zA-Z_\d]\w*(?:[-.]\w+)*)`)
 
@@ -137,23 +140,30 @@ func genRx(value string, opts genRxOptions) []string {
 		expr = strings.Replace(expr, dsp+k+dss, v, 1)
 	}
 
-	expr, _ = signalRe.ReplaceFunc(expr, func(m regexp2.Match) string {
-		g1 := m.GroupByNumber(1)
-		g2 := m.GroupByNumber(2)
-		g3 := m.GroupByNumber(3)
+	var replacer func(m []string) string
+	replacer = func(m []string) string {
 		switch {
-		case len(g1.Captures) > 0:
-			return m.String()
-		case len(g2.Captures) > 0:
-			replaced := innerSignalRe.ReplaceAllStringFunc(g2.String(), func(inner string) string {
+		case m[1] != "":
+			// Work around deletion of the $(?!\{) lookahead in the signalRe regex.
+			// If there's a '${' in the match, then strip the ``, run the replacement
+			// again (which now won't try the `` string branch of the regex), and add
+			// the `` back.
+			if dollarBrace.MatchString(m[1]) {
+				return "`" + replaceAllSubmatchFunc(signalRe, m[1][1:len(m[1])-1], replacer) + "`"
+			}
+			return m[1]
+		case m[2] != "":
+			replaced := innerSignalRe.ReplaceAllStringFunc(m[2], func(inner string) string {
 				return signalToBracket(inner[1:])
 			})
 			return "${" + replaced + "}"
-		case len(g3.Captures) > 0:
-			return signalToBracket(g3.String())
+		case m[3] != "":
+			return signalToBracket(m[3])
 		}
-		return m.String()
-	}, 0, -1)
+		return m[0]
+	}
+
+	expr = replaceAllSubmatchFunc(signalRe, expr, replacer)
 
 	expr = actionRe.ReplaceAllString(expr, `__action("$1",evt,`)
 
@@ -165,4 +175,29 @@ func genRx(value string, opts genRxOptions) []string {
 	result = append(result, opts.ArgNames...)
 	result = append(result, expr)
 	return result
+}
+
+// replaceAllSubmatchFunc calls repl for each match, passing the full slice of
+// submatches, and replaces each match with the returned string.
+func replaceAllSubmatchFunc(re *regexp.Regexp, src string, repl func([]string) string) string {
+	indices := re.FindAllStringSubmatchIndex(src, -1)
+	if len(indices) == 0 {
+		return src
+	}
+	var b strings.Builder
+	pos := 0
+	for _, idx := range indices {
+		b.WriteString(src[pos:idx[0]])
+		groups := make([]string, len(idx)/2)
+		for i := range groups {
+			lo, hi := idx[i*2], idx[i*2+1]
+			if lo >= 0 {
+				groups[i] = src[lo:hi]
+			}
+		}
+		b.WriteString(repl(groups))
+		pos = idx[1]
+	}
+	b.WriteString(src[pos:])
+	return b.String()
 }
