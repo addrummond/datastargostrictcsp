@@ -640,6 +640,8 @@ func looksLikeFullDocument(body []byte) bool {
 // injectBeforeHeadClose inserts script immediately before the closing </head> tag.
 // Returns (modified body, true) if </head> was found, (original body, false) otherwise.
 func injectBeforeHeadClose(body, script []byte) ([]byte, bool) {
+	// Without this heuristic check, every text/html response containing an HTML
+	// fragment would be fully scanned by the HTML tokenizer, which is wasteful.
 	if !looksLikeFullDocument(body) {
 		return body, false
 	}
