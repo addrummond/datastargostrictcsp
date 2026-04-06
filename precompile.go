@@ -628,9 +628,21 @@ func scriptTags(urls []string) []byte {
 	return b.Bytes()
 }
 
+func looksLikeFullDocument(body []byte) bool {
+	prefix := body
+	if len(prefix) > 512 {
+		prefix = prefix[:512]
+	}
+	upper := bytes.ToUpper(prefix)
+	return bytes.Contains(upper, []byte("<!DOCTYPE")) || bytes.Contains(upper, []byte("<HTML"))
+}
+
 // injectBeforeHeadClose inserts script immediately before the closing </head> tag.
 // Returns (modified body, true) if </head> was found, (original body, false) otherwise.
 func injectBeforeHeadClose(body, script []byte) ([]byte, bool) {
+	if !looksLikeFullDocument(body) {
+		return body, false
+	}
 	z := html.NewTokenizer(bytes.NewReader(body))
 	pos := 0
 	for {
