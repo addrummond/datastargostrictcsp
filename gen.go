@@ -145,7 +145,7 @@ func genRx(value string, opts genRxOptions) []string {
 			// If there's a '${' in the match, then strip the ``, run the replacement
 			// again (which now won't try the `` string branch of the regex), and add
 			// the `` back.
-			if strings.Contains(m[1], "${") {
+			if m[1][0] == '`' && strings.Contains(m[1], "${") {
 				return "`" + replaceAllSubmatchFunc(signalRe, m[1][1:len(m[1])-1], replacer) + "`"
 			}
 			return m[1]

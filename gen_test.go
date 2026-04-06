@@ -238,6 +238,11 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 			value: "`${foo} $bar $amp`",
 			opts:  genRxOptions{ReturnsValue: true},
 		},
+		{
+			name:  "mixed ${} and $ inside '' literal",
+			value: "'${foo} $bar $amp'",
+			opts:  genRxOptions{ReturnsValue: true},
+		},
 	}
 
 	for _, tc := range tests {
