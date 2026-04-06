@@ -18,7 +18,7 @@
   let cur = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, current window
   let old = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, previous window
   let insertCount = 0;
-  let active = false;
+  let nonceCheckActive = false;
 
   function bloomOp(filter, s, write) {
     for (let i = 0; i < 9; i++) {
@@ -46,7 +46,7 @@
       insertCount = 1;
     }
     bloomOp(cur, nonce, true);
-    active = true;
+    nonceCheckActive = true;
   };
 
   let lastNonce = ""; // fast path: skip bloom lookup when nonce matches last valid hit
@@ -99,7 +99,7 @@
   function checked(fn) {
     return function (el) {
       // <nonce_check>
-      if (active) {
+      if (nonceCheckActive) {
         const nonce = (el && el.dataset && el.dataset.dsNonce) || "";
         if (nonce !== lastNonce) {
           if (!bloomHas(nonce)) {
