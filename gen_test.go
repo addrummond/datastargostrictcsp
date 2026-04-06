@@ -69,7 +69,7 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 		value string
 		opts  genRxOptions
 	}{
-		// ── signal access ─────────────────────────────────────────────────────
+		// signal access
 		{
 			name:  "simple signal read",
 			value: "$count",
@@ -106,7 +106,7 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 			opts:  genRxOptions{ReturnsValue: false},
 		},
 
-		// ── string/template literals ──────────────────────────────────────────
+		// string/template literals
 		{
 			name:  "signal inside double-quoted string not transformed",
 			value: `"$foo"`,
@@ -128,7 +128,7 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 			opts:  genRxOptions{ReturnsValue: true},
 		},
 
-		// ── actions ───────────────────────────────────────────────────────────
+		// actions
 		{
 			name:  "action with string arg",
 			value: "@post('/api/counter/increment')",
@@ -145,7 +145,7 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 			opts:  genRxOptions{ReturnsValue: false},
 		},
 
-		// ── multiple statements ───────────────────────────────────────────────
+		// multiple statements
 		{
 			name:  "multiple statements return added to last",
 			value: "$a++; $b = $a",
@@ -157,14 +157,14 @@ func TestGenRx_ParityWithJS(t *testing.T) {
 			opts:  genRxOptions{ReturnsValue: true},
 		},
 
-		// ── extra argNames ────────────────────────────────────────────────────
+		// extra argNames
 		{
 			name:  "extra argName (on-signal-patch style)",
 			value: "$count = patch.value",
 			opts:  genRxOptions{ReturnsValue: true, ArgNames: []string{"patch"}},
 		},
 
-		// ── miscellaneous ─────────────────────────────────────────────────────
+		// miscellaneous
 		{
 			name:  "boolean expression",
 			value: "$visible && $count > 0",
