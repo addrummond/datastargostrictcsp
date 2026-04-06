@@ -633,6 +633,7 @@ func looksLikeFullDocument(body []byte) bool {
 	if len(prefix) > 512 {
 		prefix = prefix[:512]
 	}
+	// upper doesn't escape; stack allocation cost is negligible
 	upper := bytes.ToUpper(prefix)
 	return bytes.Contains(upper, []byte("<!DOCTYPE")) || bytes.Contains(upper, []byte("<HTML"))
 }
