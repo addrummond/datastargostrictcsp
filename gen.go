@@ -89,8 +89,6 @@ var (
 			`)|\$\{([^{}]*)\}|\$([a-zA-Z_\d]\w*(?:[-.]\w+)*)`,
 	)
 
-	dollarBrace = regexp.MustCompile(`\$\{`)
-
 	innerSignalRe = regexp.MustCompile(`\$([a-zA-Z_\d]\w*(?:[-.]\w+)*)`)
 
 	actionRe = regexp.MustCompile(`@([A-Za-z_$][\w$]*)\(`)
@@ -147,7 +145,7 @@ func genRx(value string, opts genRxOptions) []string {
 			// If there's a '${' in the match, then strip the ``, run the replacement
 			// again (which now won't try the `` string branch of the regex), and add
 			// the `` back.
-			if dollarBrace.MatchString(m[1]) {
+			if strings.Contains(m[1], "${") {
 				return "`" + replaceAllSubmatchFunc(signalRe, m[1][1:len(m[1])-1], replacer) + "`"
 			}
 			return m[1]
