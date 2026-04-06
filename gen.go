@@ -164,7 +164,6 @@ func genRx(value string, opts genRxOptions) []string {
 	}
 
 	expr = replaceAllSubmatchFunc(signalRe, expr, replacer)
-
 	expr = actionRe.ReplaceAllString(expr, `__action("$1",evt,`)
 
 	for k, v := range escaped {
