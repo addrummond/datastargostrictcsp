@@ -76,14 +76,8 @@
   const mo = new MutationObserver((records) => {
     for (const r of records) {
       for (const node of r.addedNodes) {
-        if (node.nodeType === 1) {
-          // If it's not blessed then it already has a cursed parent (given
-          // that doc root is blessed). As cursed status always wins, adding
-          // the element to either the blessed or cursed sets won't make a
-          // difference.
-          if (!isBlessed(node)) continue;
-          if (blessingEnabled) blessed.add(node);
-          else cursed.add(node);
+        if (node.nodeType === 1 && !blessingEnabled && isBlessed(node)) {
+          cursed.add(node);
         }
       }
     }
