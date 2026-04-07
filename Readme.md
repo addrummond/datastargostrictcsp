@@ -4,7 +4,7 @@
 ![Datastar](https://img.shields.io/badge/Datastar-1.0.0--RC.8-blueviolet?style=flat)
 [![Go Reference](https://pkg.go.dev/badge/github.com/addrummond/datastargostrictcsp.svg)](https://pkg.go.dev/github.com/addrummond/datastargostrictcsp)
 
-A Go package that makes [Datastar](https://data-star.dev/) compatible with strict [Content Security Policies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
+A Go package that makes [Datastar](https://data-star.dev/) compatible with a strict [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
 
 **No `unsafe-eval`**.
 
