@@ -67,9 +67,17 @@
   const blessed = new WeakSet();
   let blessingEnabled = false;
 
+  // Only elements bearing a Datastar data-* attribute need to be blessed;
+  // expressions are never invoked on plain elements.
+  const DS_ATTR_RE = /^data-(?:animate|attr|bind|class|computed|custom-validity|effect|ignore|indicator|init|json-signals|match-media|on|persist|preserve-attr|query-string|ref|replace-url|rocket|scroll-into-view|show|signals|style|text|view-transition)(?:[-:.]|$)/;
+
+  function hasDsAttr(el) {
+    return el.getAttributeNames().some(name => DS_ATTR_RE.test(name));
+  }
+
   function blessSubtree(root) {
-    blessed.add(root);
-    root.querySelectorAll("*").forEach((el) => blessed.add(el));
+    if (hasDsAttr(root)) blessed.add(root);
+    root.querySelectorAll("*").forEach((el) => { if (hasDsAttr(el)) blessed.add(el); });
   }
 
   // Start observing immediately (document.documentElement exists even in
@@ -87,7 +95,7 @@
   function blessInitial() {
     document.documentElement
       .querySelectorAll("*")
-      .forEach((el) => blessed.add(el));
+      .forEach((el) => { if (hasDsAttr(el)) blessed.add(el); });
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", blessInitial);
