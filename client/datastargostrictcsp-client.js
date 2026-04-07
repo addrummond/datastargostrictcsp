@@ -54,14 +54,14 @@
 
   // Blessed/cursed element registry
   //
-  // document.documentElement is the single blessed seed — all initial page
-  // content inherits blessing by walking up to it. When the
-  // MutationObserver fires, the root of each inserted subtree is added to
-  // `cursed` if it is not inserted via a legitimate Datastar patching operation.
-  // The isBlessed function walks up the ancestor chain, looking for either a
-  // blessed or a cursed ancestor. To make repeated checks faster for blessed
-  // nodes, we add the 5th ancestor of a blessed node to the blessed set after
-  // the initial successful walk to the blessed root.
+  // document.documentElement is the single blessed seed — all initial DOM nodes 
+  // inherit blessing by walking up to it. When the MutationObserver fires, the
+  // root of each inserted subtree is added to `cursed` if it is not inserted
+  // via a legitimate Datastar patching operation. The isBlessed function walks
+  // up the ancestor chain, looking for either a blessed or a cursed ancestor.
+  // To make repeated checks faster for blessed nodes, we add the 5th ancestor
+  // of a blessed node to the blessed set after the initial successful walk to
+  // the blessed root.
   //
   // This protection is complementary to the nonce bloom filter: the nonce
   // filter is opt-in (activated only when a precompile script calls
