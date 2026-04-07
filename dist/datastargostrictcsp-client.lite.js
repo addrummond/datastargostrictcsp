@@ -29,8 +29,7 @@
           // that doc root is blessed). As cursed status always wins, adding
           // the element to either the blessed or cursed sets won't make a
           // difference.
-          if (!isBlessed(node))
-            continue;
+          if (!isBlessed(node)) continue;
           if (blessingEnabled) blessed.add(node);
           else cursed.add(node);
         }
@@ -177,9 +176,7 @@
       // MutationObserver callbacks are microtasks; setTimeout (macrotask)
       // fires after them, so newly patched elements are blessed before we
       // close the window.
-      setTimeout(() => {
-        blessingEnabled = false;
-      }, 0);
+      setTimeout(() => (blessingEnabled = false), 0);
     });
   });
 })();
