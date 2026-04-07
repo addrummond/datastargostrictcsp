@@ -158,8 +158,8 @@
     return fn ? checked(fn) : new _Function(...args);
   }
   window.Function = new Proxy(_Function, {
-    apply:     (_t, _th, args) => proxyHandler(args),
-    construct: (_t,      args) => proxyHandler(args),
+    apply: (_t, _th, args) => proxyHandler(args),
+    construct: (_t, args) => proxyHandler(args),
   });
 
   // Precompile interceptor
