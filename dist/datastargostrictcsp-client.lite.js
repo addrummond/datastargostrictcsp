@@ -1,60 +1,74 @@
 (() => {
 
-  // Blessed-element registry
+  // Blessed/cursed element registry
   //
-  // Every element present in the initial page HTML is "blessed" at
-  // DOMContentLoaded. Elements inserted by Datastar's own controlled
-  // patch path are blessed at patch time (blessingEnabled is true during
-  // the re-dispatch below). Elements injected by other code — e.g. via a
-  // raw innerHTML assignment — are never blessed, so their Datastar
-  // expressions are silently blocked without any server-side changes.
+  // document.documentElement is the single blessed seed — all initial page
+  // content inherits blessing lazily by walking up to it. When the
+  // MutationObserver fires, the root of each inserted subtree is added to
+  // `blessed` (Datastar-controlled patch, blessingEnabled=true) or `cursed`
+  // (any other insertion). isEffectivelyBlessed walks up the ancestor chain:
+  // a cursed ancestor wins even if a blessed ancestor lies higher, so injected
+  // subtrees nested inside legitimate content are still blocked. Path
+  // compression caches an intermediate ancestor after 5 steps to amortise
+  // future walks on deep trees.
   //
   // This protection is complementary to the nonce bloom filter: the nonce
   // filter is opt-in (activated only when a precompile script calls
   // __ds_bloom_add); the blessing check is always active.
   const blessed = new WeakSet();
+  const cursed = new WeakSet();
   let blessingEnabled = false;
 
-  // Only elements bearing a Datastar data-* attribute need to be blessed;
-  // expressions are never invoked on plain elements.
-  const DS_ATTR_RE = /^data-(?:animate|attr|bind|class|computed|custom-validity|effect|ignore|indicator|init|json-signals|match-media|on|persist|preserve-attr|query-string|ref|replace-url|rocket|scroll-into-view|show|signals|style|text|view-transition)(?:[-:.]|$)/;
+  blessed.add(document.documentElement);
 
-  function hasDsAttr(el) {
-    return el.getAttributeNames().some(name => DS_ATTR_RE.test(name));
-  }
-
-  function blessSubtree(root) {
-    if (hasDsAttr(root)) blessed.add(root);
-    root.querySelectorAll("*").forEach((el) => { if (hasDsAttr(el)) blessed.add(el); });
-  }
-
-  // Start observing immediately (document.documentElement exists even in
-  // <head>) so we catch any patches that fire at DOMContentLoaded.
   const mo = new MutationObserver((records) => {
-    if (!blessingEnabled) return;
     for (const r of records) {
       for (const node of r.addedNodes) {
-        if (node.nodeType === 1) blessSubtree(node);
+        if (node.nodeType === 1) {
+          // If it's not blessed then it already has a cursed parent (given
+          // that doc root is blessed). As cursed status always wins, adding
+          // the element to either the blessed or cursed sets won't make a
+          // difference.
+          if (!isBlessed(node))
+            continue;
+          if (blessingEnabled) blessed.add(node);
+          else cursed.add(node);
+        }
       }
     }
   });
-  mo.observe(document.documentElement, { childList: true, subtree: true });
-
-  function blessInitial() {
-    document.documentElement
-      .querySelectorAll("*")
-      .forEach((el) => { if (hasDsAttr(el)) blessed.add(el); });
-  }
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", blessInitial);
+    document.addEventListener("DOMContentLoaded", () =>
+      mo.observe(document.documentElement, { childList: true, subtree: true }),
+    );
   } else {
-    blessInitial(); // script loaded after parsing (e.g. dynamic import)
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function isBlessed(el) {
+    let node = el;
+    let steps = 0;
+    let midpoint = null;
+    while (node && node.nodeType === 1) {
+      if (steps === 5) midpoint = node;
+      if (cursed.has(node)) {
+        if (midpoint) cursed.add(midpoint);
+        return false;
+      }
+      if (blessed.has(node)) {
+        if (midpoint) blessed.add(midpoint);
+        return true;
+      }
+      node = node.parentElement;
+      steps++;
+    }
+    return false;
   }
 
   // Wrap fn so blessing and nonce checks run at invocation time (when el is available).
   function checked(fn) {
     return function (el) {
-      if (!blessed.has(el)) {
+      if (!isBlessed(el)) {
         console.error(
           "[datastarstrictcsp] element not blessed: expression blocked on element:",
           el,
