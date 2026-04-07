@@ -86,17 +86,13 @@
   const p = (window.__datastar_precompiled_expressions =
     window.__datastar_precompiled_expressions || new Map());
 
+  function proxyHandler(args) {
+    const fn = p.get(JSON.stringify(args));
+    return fn ? checked(fn) : new _Function(...args);
+  }
   window.Function = new Proxy(_Function, {
-    apply: function (_t, _th, args) {
-      const fn = p.get(JSON.stringify(args));
-      if (!fn) return new _Function(...args);
-      return checked(fn);
-    },
-    construct: function (_t, args) {
-      const fn = p.get(JSON.stringify(args));
-      if (!fn) return new _Function(...args);
-      return checked(fn);
-    },
+    apply:     (_t, _th, args) => proxyHandler(args),
+    construct: (_t,      args) => proxyHandler(args),
   });
 
   // Precompile interceptor
