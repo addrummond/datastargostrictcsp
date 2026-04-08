@@ -12,6 +12,8 @@ A Go package that makes [Datastar](https://data-star.dev/) compatible with a str
 
 **2.0KB** minified client-side JS.
 
+🚀 Minimal changes to your app. No restrictions on Datastar expressions.
+
 🚧 **Not officially supported. Not tested with Datastar Pro.**
 
 ---
