@@ -168,7 +168,7 @@ func (p *Precompiler) ScriptHandler() http.Handler {
 		}
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		w.Write(buildJS(entries, q.Get("n")))
+		w.Write(buildJS(entries))
 	})
 }
 
@@ -177,7 +177,7 @@ func (p *Precompiler) ScriptHandler() http.Handler {
 // URLs; all of them write into the same window.__datastar_precompiled_expressions
 // map so the JS composes cleanly. A single entry that by itself exceeds the
 // limit is emitted as its own URL rather than silently dropped.
-func (p *Precompiler) buildSignedURLs(entries []precompileEntry, nonce string) ([]string, error) {
+func (p *Precompiler) buildSignedURLs(entries []precompileEntry) ([]string, error) {
 	base := p.scriptPath() + "?"
 	maxLen := p.maxURLLen()
 
@@ -185,11 +185,7 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry, nonce string) (
 	var chunk []string
 
 	flush := func() {
-		q := url.Values{"e": chunk}
-		if nonce != "" {
-			q.Set("n", nonce)
-		}
-		urls = append(urls, base+q.Encode())
+		urls = append(urls, base+url.Values{"e": chunk}.Encode())
 		chunk = nil
 	}
 
@@ -199,11 +195,7 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry, nonce string) (
 			return nil, err
 		}
 		if len(chunk) > 0 {
-			q := url.Values{"e": append(append([]string{}, chunk...), e)}
-			if nonce != "" {
-				q.Set("n", nonce)
-			}
-			if len(base)+len(q.Encode()) > maxLen {
+			if len(base)+len(url.Values{"e": append(append([]string{}, chunk...), e)}.Encode()) > maxLen {
 				flush()
 			}
 		}
@@ -213,6 +205,46 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry, nonce string) (
 		flush()
 	}
 	return urls, nil
+}
+
+// DatastarExpression is a Datastar attribute expression to precompile.
+// Attribute is the base name of the Datastar attribute (e.g. "on", "show",
+// "effect"). Value is the raw expression string.
+type DatastarExpression struct {
+	Attribute string
+	Value     string
+}
+
+// SignedURLs precompiles exprs and returns one or more signed script URLs
+// covering all of them. The URLs can be injected as <script src="..."> tags
+// in any template engine. URLs are stable for a given set of expressions and
+// signing key, so they are safe to cache indefinitely.
+func (p *Precompiler) SignedURLs(exprs []DatastarExpression) ([]string, error) {
+	seen := map[string]bool{}
+	var entries []precompileEntry
+	for _, e := range exprs {
+		attr, known := dsAttrs[e.Attribute]
+		if !known || attr.Kind == dsAttrNone {
+			continue
+		}
+		variants := []bool{attr.Kind == dsAttrValue}
+		if attr.Kind == dsAttrBoth {
+			variants = []bool{true, false}
+		}
+		for _, isValue := range variants {
+			fa := genRxCached(e.Value, genRxOptions{ReturnsValue: isValue, ArgNames: attr.ArgNames})
+			if j, err := json.Marshal(fa); err == nil {
+				if k := string(j); !seen[k] {
+					seen[k] = true
+					entries = append(entries, precompileEntry{funcArgs: fa})
+				}
+			}
+		}
+	}
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	return p.buildSignedURLs(entries)
 }
 
 type skipKey struct{}
@@ -353,9 +385,11 @@ func (dw *detectWriter) flush() {
 
 	body := dw.buf.Bytes()
 	if entries := scanHTML(body, dw.nonce); len(entries) > 0 {
-		if urls, err := dw.p.buildSignedURLs(entries, dw.nonce); err == nil {
+		if urls, err := dw.p.buildSignedURLs(entries); err == nil {
 			dw.ResponseWriter.Header().Del("Content-Length")
-			if modified, ok := injectBeforeHeadClose(body, scriptTags(urls)); ok {
+			inject := nonceMeta(dw.nonce)
+			inject = append(inject, scriptTags(urls)...)
+			if modified, ok := injectBeforeHeadClose(body, inject); ok {
 				body = modified
 			} else {
 				comment := "<!-- precompile-url: " + strings.Join(urls, " ") + " -->\n"
@@ -418,7 +452,7 @@ func (sw *sseWriter) processEvent(event []byte) error {
 	html := strings.Join(parts, "\n")
 
 	if entries := scanHTML([]byte(html), sw.nonce); len(entries) > 0 {
-		if urls, err := sw.p.buildSignedURLs(entries, sw.nonce); err == nil {
+		if urls, err := sw.p.buildSignedURLs(entries); err == nil {
 			// Inject precompile URLs as a single space-separated data field.
 			// The client shim intercepts datastar-patch-elements events that
 			// carry this field, loads each script, then re-dispatches.
@@ -538,7 +572,7 @@ func scanHTML(body []byte, nonce string) []precompileEntry {
 	return results
 }
 
-func buildJS(entries []precompileEntry, nonce string) []byte {
+func buildJS(entries []precompileEntry) []byte {
 	// Group entries by their param list (all funcArgs except the body).
 	// Each unique param signature gets one helper that handles the
 	// p.set(JSON.stringify([...params, b]), fn) boilerplate.
@@ -570,12 +604,7 @@ func buildJS(entries []precompileEntry, nonce string) []byte {
 
 	var b strings.Builder
 	b.WriteString("(function(){\n")
-	if nonce != "" {
-		nonceJSON, _ := json.Marshal(nonce)
-		b.WriteString("window.__ds_bloom_add&&window.__ds_bloom_add(")
-		b.Write(nonceJSON)
-		b.WriteString(");\n")
-	}
+	b.WriteString("window.__ds_bloom_add&&window.__ds_bloom_add(document.querySelector('meta[name=\"datastargostrictcsp-ds-nonce\"]')?.content);\n")
 	b.WriteString("const p=window.__datastar_precompiled_expressions=window.__datastar_precompiled_expressions||new Map();\nfunction s(x,y){return p.set(JSON.stringify(x),y)}\n")
 
 	// One helper per unique param signature.
@@ -615,6 +644,13 @@ func buildJS(entries []precompileEntry, nonce string) []byte {
 }
 
 // scriptTags renders one <script src="..."> tag per URL.
+func nonceMeta(nonce string) []byte {
+	if nonce == "" {
+		return nil
+	}
+	return []byte(`<meta name="datastargostrictcsp-ds-nonce" content="` + nonce + `">` + "\n")
+}
+
 func scriptTags(urls []string) []byte {
 	var b bytes.Buffer
 	for i, u := range urls {

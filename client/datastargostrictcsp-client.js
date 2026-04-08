@@ -3,11 +3,11 @@
   // Nonce bloom filter
   //
   // Tracks per-render nonces from precompile scripts. Each precompile script
-  // calls window.__ds_bloom_add(nonce) before Datastar processes its elements.
-  // The proxy then rejects expression invocations on elements whose
-  // data-ds-nonce is not in the filter, preventing injected HTML (e.g. via a
-  // vulnerable innerHTML assignment) from reusing legitimate compiled
-  // expressions.
+  // calls window.__ds_bloom_add(nonce), reading the nonce from the
+  // <meta name="datastargostrictcsp-ds-nonce"> tag injected by the server middleware. The proxy
+  // then rejects expression invocations on elements whose data-ds-nonce is not
+  // in the filter, preventing injected HTML (e.g. via a vulnerable innerHTML
+  // assignment) from reusing legitimate compiled expressions.
   //
   // Two rotating bloom filters, each m=2^14 bits (2 KB), k=9.
   // Insertions go into `cur`; after 1000 insertions `cur` and `old` swap and
@@ -38,6 +38,7 @@
 
   // Called by each precompile script to register its render nonce.
   window.__ds_bloom_add = (nonce) => {
+    if (!nonce) return;
     if (++insertCount > 1000) {
       old.fill(0);
       const tmp = old;
@@ -54,7 +55,7 @@
 
   // Blessed/cursed element registry
   //
-  // document.documentElement is the single blessed seed — all initial DOM nodes 
+  // document.documentElement is the single blessed seed — all initial DOM nodes
   // inherit blessing by walking up to it. When the MutationObserver fires, the
   // root of each inserted subtree is added to `cursed` if it is not inserted
   // via a legitimate Datastar patching operation. The isBlessed function walks
@@ -184,7 +185,16 @@
 
   function loadScript(url) {
     const key = urlKey(url);
-    if (loadedScripts.has(key)) return Promise.resolve();
+    if (loadedScripts.has(key)) {
+      // Script already loaded. Still register the current page nonce in case
+      // it hasn't been added yet (e.g. the initial page had no expressions,
+      // so no <script> was injected).
+      window.__ds_bloom_add?.(
+        document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')
+          ?.content,
+      );
+      return Promise.resolve();
+    }
     loadedScripts.add(key);
     return new Promise((resolve) => {
       const s = document.createElement("script");

@@ -202,8 +202,8 @@ func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 	if !strings.Contains(body, "<script") {
 		t.Fatalf("expected <script> for matching nonce element; body:\n%s", body)
 	}
-	if !strings.Contains(body, "&n=") {
-		t.Errorf("expected nonce appended to script URL; body:\n%s", body)
+	if !strings.Contains(body, `<meta name="datastargostrictcsp-ds-nonce"`) {
+		t.Errorf("expected datastargostrictcsp-ds-nonce meta tag in page; body:\n%s", body)
 	}
 }
 
@@ -340,8 +340,8 @@ func TestScriptHandler_WithNonce_EmitsBloomAdd(t *testing.T) {
 	if !strings.Contains(js, "__ds_bloom_add") {
 		t.Errorf("expected bloom add call in JS;\ngot: %s", js)
 	}
-	if !strings.Contains(js, `"`+capturedNonce+`"`) {
-		t.Errorf("expected nonce value in JS bloom call;\ngot: %s", js)
+	if !strings.Contains(js, `querySelector('meta[name="datastargostrictcsp-ds-nonce"]')`) {
+		t.Errorf("expected meta tag nonce read in JS bloom call;\ngot: %s", js)
 	}
 }
 

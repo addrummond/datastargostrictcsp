@@ -107,6 +107,23 @@ By default, the example app runs without client-side nonce checks (the more typi
 To try the app with client-side nonce checks enabled, go to `http://localhost:8080/?lite=false`.
 For more information on nonce checks, see [Adding nonces for extra protection](#adding-nonces-for-extra-protection).
 
+## Low-level API
+
+If you don't want to use the provided middleware, you can manually generate a set of signed URLs given a list of Datastar attribute value pairs:
+
+```go
+pc := &datastargostrictcsp.Precompiler{Key: [32]byte{1,2,3}}
+
+...
+
+var signedUrls []string = pc.SignedURLs([]DatastarExpression{
+	{"data-on:click", "@post('/api/counter/increment')"},
+	{"data-text", "$text.length"},
+})
+```
+
+You must extract Datastar attributes from your HTML and then ensure that HTML delivered to the client is somehow accompanied by the required signed URLs (and that these URLs are then loaded via `<script src="...">` tags before Datastar processes the HTML).
+
 ## Security
 
 ### The default configuration
