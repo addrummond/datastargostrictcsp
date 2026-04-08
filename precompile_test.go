@@ -28,10 +28,10 @@ func TestNonceFromContext_EmptyByDefault(t *testing.T) {
 func TestMiddlewareWithNonce_SetsNonceInContext(t *testing.T) {
 	p := testPrecompiler(t)
 	var got string
-	handler := p.MiddlewareWithNonce(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = dscsp.NonceFromContext(r.Context())
 		w.Write([]byte(`<p>hi</p>`))
-	}))
+	})))
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
 	if got == "" {
 		t.Error("expected non-empty nonce in context from MiddlewareWithNonce")
@@ -186,13 +186,13 @@ func TestMiddleware_Fragment_PrependsComment(t *testing.T) {
 func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 	p := testPrecompiler(t)
 
-	handler := p.MiddlewareWithNonce(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nonce := dscsp.NonceFromContext(r.Context())
 		w.Write([]byte(`<html><head></head><body>` +
 			`<div data-text="signalA" data-ds-nonce="` + nonce + `"></div>` +
 			`<div data-text="signalB"></div>` +
 			`</body></html>`))
-	}))
+	})))
 
 	req := httptest.NewRequest("GET", "/", nil)
 	rec := httptest.NewRecorder()
@@ -210,10 +210,10 @@ func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 func TestMiddleware_WithNonce_NoMatchingElements(t *testing.T) {
 	p := testPrecompiler(t)
 
-	handler := p.MiddlewareWithNonce(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Element has a DS attr but no matching nonce attribute
 		w.Write([]byte(`<html><head></head><body><div data-text="x"></div></body></html>`))
-	}))
+	})))
 
 	req := httptest.NewRequest("GET", "/", nil)
 	rec := httptest.NewRecorder()
@@ -315,12 +315,12 @@ func TestScriptHandler_WithNonce_EmitsBloomAdd(t *testing.T) {
 	p := testPrecompiler(t)
 
 	var capturedNonce string
-	pageHandler := p.MiddlewareWithNonce(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	pageHandler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedNonce = dscsp.NonceFromContext(r.Context())
 		w.Write([]byte(`<html><head></head><body>` +
 			`<div data-text="x" data-ds-nonce="` + capturedNonce + `"></div>` +
 			`</body></html>`))
-	}))
+	})))
 
 	rec := httptest.NewRecorder()
 	pageHandler.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))

@@ -72,7 +72,7 @@ mux.HandleFunc("POST /api/todos", handleTodosAdd)
 mux.HandleFunc("GET /api/feed", handleFeed)
 
 // Wrap the whole mux once at the server level.
-// Use pc.MiddlewareWithNonce(mux) instead if you are using nonces
+// Compose with NonceMiddleware if you are using nonces
 // (see 'Adding nonces for extra protection' below).
 http.ListenAndServe(":8080", pc.Middleware(mux))
 ```
@@ -124,6 +124,8 @@ var signedUrls []string = pc.SignedURLs([]DatastarExpression{
 
 You must extract Datastar attributes from your HTML and then ensure that HTML delivered to the client is somehow accompanied by the required signed URLs (and that these URLs are then loaded via `<script src="...">` tags before Datastar processes the HTML).
 
+If using nonces, HTML pages should include `<meta name="datastargostrictcsp-ds-nonce" content="$NONCE">` before the script tags for the signed URLs.
+
 ## Security
 
 ### The default configuration
@@ -154,10 +156,10 @@ How to modify your app to use nonces:
 
 **1.** Use `dist/datastargostrictcsp-client.js` rather than `dist/datastargostrictcsp-client.lite.js`.
 
-**2.** Use `MiddlewareWithNonce` instead of `Middleware`. It generates a fresh nonce per request and stores it in the request context automatically:
+**2.** Compose `NonceMiddleware` with `Middleware`. It generates a fresh nonce per request and stores it in the request context:
 
 ```go
-http.ListenAndServe(":8080", pc.MiddlewareWithNonce(mux))
+http.ListenAndServe(":8080", datastargostrictcsp.NonceMiddleware(pc.Middleware(mux)))
 ```
 
 **3.** Include a `Nonce` field in your template data and apply `AddNonceToTemplate` once at startup:
@@ -202,7 +204,7 @@ The default configuration already mitigates client-side attribute injection atta
 
 Server-side injection attacks are best avoided by (i) using any sane templating system and (ii) being careful in the rare few cases where you intentionally substitute untrusted HTML into a page. If you care enough to be reading this, then you're almost certainly not going to screw this up.
 
-It might make sense to *selectively* use nonces when rendering especially sensitive or risky pages. Nonce protection is opt-in at the middleware level. Use `MiddlewareWithNonce` for routes where you want it, and plain `Middleware` for routes where you don't.
+It might make sense to *selectively* use nonces when rendering especially sensitive or risky pages. Nonce protection is opt-in at the middleware level. Just wrap `Middleware` with `NonceMiddleware` where you want it.
 
 ## Signing key rotation
 

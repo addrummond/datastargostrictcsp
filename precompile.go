@@ -5,7 +5,7 @@
 // JavaScript Function constructor at runtime.
 //
 // Basic usage: mount [Precompiler.ScriptHandler] at a fixed path, then wrap
-// your mux with [Precompiler.Middleware] (or [Precompiler.MiddlewareWithNonce]
+// your mux with [Precompiler.Middleware] (optionally combined with [NonceMiddleware]
 // for per-request nonce protection). Load the companion client-side script
 // (dist/datastargostrictcsp-client.js) before the Datastar module script.
 //
@@ -85,7 +85,7 @@ func contextWithNonce(ctx context.Context, nonce string) context.Context {
 	return context.WithValue(ctx, nonceContextKey{}, nonce)
 }
 
-// NonceFromContext retrieves the per-request nonce stored by MiddlewareWithNonce.
+// NonceFromContext retrieves the per-request nonce stored by NonceMiddleware.
 // Returns an empty string if none is set.
 func NonceFromContext(ctx context.Context) string {
 	n, _ := ctx.Value(nonceContextKey{}).(string)
@@ -276,8 +276,8 @@ func Skip(next http.Handler) http.Handler {
 // to distinguish between HTML and SSE routes. Wrap individual handlers with
 // Skip to opt specific routes out of processing.
 //
-// Use MiddlewareWithNonce to automatically generate and inject a per-request
-// nonce.
+// Use it in combination with NonceMiddleware to protect against expression
+// injection from untrusted HTML.
 func (p *Precompiler) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Context().Value(skipKey{}) != nil {
@@ -291,14 +291,16 @@ func (p *Precompiler) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// MiddlewareWithNonce is like Middleware, but generates a fresh nonce for each
-// request and stores it in the request context. Templates can retrieve it with
-// NonceFromContext(r.Context()).
-func (p *Precompiler) MiddlewareWithNonce(next http.Handler) http.Handler {
-	inner := p.Middleware(next)
+// NonceMiddleware generates a fresh cryptographic nonce for each request and
+// stores it in the context. Templates retrieve it with NonceFromContext.
+// Compose it with Precompiler.Middleware to enable nonce-based expression
+// filtering:
+//
+//	NonceMiddleware(p.Middleware(mux))
+func NonceMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nonce := generateNonce()
-		inner.ServeHTTP(w, r.WithContext(contextWithNonce(r.Context(), nonce)))
+		next.ServeHTTP(w, r.WithContext(contextWithNonce(r.Context(), nonce)))
 	})
 }
 

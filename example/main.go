@@ -401,7 +401,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              ":8080",
-		Handler:           cspMiddleware(pc.MiddlewareWithNonce(mux)),
+		Handler:           cspMiddleware(datastargostrictcsp.NonceMiddleware(pc.Middleware(mux))),
 		ReadTimeout:       15 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
