@@ -124,7 +124,7 @@ var signedUrls []string = pc.SignedURLs([]DatastarExpression{
 
 You must extract Datastar attributes from your HTML and then ensure that HTML delivered to the client is somehow accompanied by the required signed URLs (and that these URLs are then loaded via `<script src="...">` tags before Datastar processes the HTML).
 
-If using nonces, HTML pages should include `<meta name="datastargostrictcsp-ds-nonce" content="$NONCE">` before the script tags for the signed URLs.
+If using nonces (see [Adding nonces for extra protection](#adding-nonces-for-extra-protection)), then HTML pages should include `<meta name="datastargostrictcsp-ds-nonce" content="$NONCE">` before the script tags for the signed URLs.
 
 ## Security
 
