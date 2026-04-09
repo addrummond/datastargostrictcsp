@@ -272,10 +272,6 @@ func Skip(next http.Handler) http.Handler {
 //   - text/html (fragment): prepends a <!-- precompile-url: ... --> comment.
 //   - anything else (JS, images, …): passed through.
 //
-// A single Middleware wrapping the whole mux is sufficient; there is no need
-// to distinguish between HTML and SSE routes. Wrap individual handlers with
-// Skip to opt specific routes out of processing.
-//
 // Use it in combination with NonceMiddleware to protect against expression
 // injection from untrusted HTML.
 func (p *Precompiler) Middleware(next http.Handler) http.Handler {
