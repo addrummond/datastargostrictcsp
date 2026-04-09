@@ -77,7 +77,7 @@
   // from window.__datastar_precompiled_expressions instead of eval-ing expressions at runtime.
   const _Function = Function;
   const p = (window.__datastar_precompiled_expressions =
-    window.__datastar_precompiled_expressions || new Map());
+    window.__datastar_precompiled_expressions ?? new Map());
 
   function proxyHandler(args) {
     const fn = p.get(JSON.stringify(args));
@@ -162,7 +162,7 @@
       // text/html path: one comment per URL (nonce on the first), consume all.
       urls = [];
       let rest = argsRaw.elements;
-      for (let m; (m = rest.match(COMMENT_RE)) && (m[1] || m[2]); ) {
+      for (let m; (m = rest.match(COMMENT_RE)) && (m[1] ?? m[2]); ) {
         if (m[1]) window.__ds_bloom_add?.(m[1]);
         if (m[2]) urls.push(m[2]);
         rest = rest.slice(m[0].length);
