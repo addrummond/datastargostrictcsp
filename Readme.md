@@ -101,7 +101,7 @@ To run over https and HTTP 2:
 
 Without https, the connection will use HTTP 1.1. Limits on the maximum number of simultaneous connections may cause some initial SSE connection errors to show in the console.
 
-If you have Go ≥ 1.25, you can install [`air`](https://github.com/air-verse/air) with `go mod download` and then run `go tool air` to start the example app with auto-reload-on-change functionality enabled. Go to `http://localhost:8090` (not 8080).
+If you have Go ≥ 1.25, you can run `go tool air` to start the example app with auto-reload-on-change functionality enabled. Go to `http://localhost:8090` (not 8080).
 
 By default, the example app runs without client-side nonce checks (the more typical scenario).
 To try the app with client-side nonce checks enabled, go to `http://localhost:8080/?lite=false`.
@@ -150,7 +150,7 @@ To protect fully against injection attacks, we need to know that any given Datas
 
 To do this, we can create a one-off random value (a 'nonce') and add it alongside the other Datastar attributes as `data-ds-nonce="$VAL"`. The middleware precompiles only those Datastar expressions accompanied by the correct nonce. Meanwhile, the client intercepts Datastar's DOM patching and also checks the nonce, providing another layer of protection against client-side injection.
 
-Manually adding nonce attributes to your HTML is tedious. You'd probably want to find a way of setting up your templating system to automatically add a `data-ds-nonce` attribute to any tag with other Datastar attributes.
+Manually adding nonce attributes to your HTML is tedious. You'll probably want to find a way of setting up your templating system to automatically add a `data-ds-nonce` attribute to any tag with other Datastar attributes.
 
 How to modify your app to use nonces:
 
