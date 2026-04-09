@@ -154,7 +154,7 @@ Manually adding nonce attributes to your HTML is tedious. This module provides a
 
 How to modify your app to use nonces:
 
-**1.** Use `dist/datastargostrictcsp-client.js` rather than `dist/datastargostrictcsp-client.lite.js`.
+**1.** If you want client-side nonce checks, use `dist/datastargostrictcsp-client.js` rather than `dist/datastargostrictcsp-client.lite.js`.
 
 **2.** Compose `NonceMiddleware` with `Middleware`. It generates a fresh nonce per request and stores it in the request context:
 
