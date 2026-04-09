@@ -73,7 +73,7 @@ var tmpl = func() *template.Template {
 		if err != nil {
 			panic(err)
 		}
-		template.Must(t.Parse(datastargostrictcsp.AddNonceToTemplate(string(content), "{{$.Nonce}}")))
+		template.Must(t.Parse(string(content)))
 	}
 	return t
 }()

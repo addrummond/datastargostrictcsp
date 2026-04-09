@@ -382,7 +382,8 @@ func (dw *detectWriter) flush() {
 	}()
 
 	body := dw.buf.Bytes()
-	if entries := scanHTML(body, dw.nonce); len(entries) > 0 {
+	entries := scanHTML(body, dw.nonce)
+	if len(entries) > 0 {
 		if urls, err := dw.p.buildSignedURLs(entries); err == nil {
 			dw.ResponseWriter.Header().Del("Content-Length")
 			inject := nonceMeta(dw.nonce)
@@ -390,10 +391,24 @@ func (dw *detectWriter) flush() {
 			if modified, ok := injectBeforeHeadClose(body, inject); ok {
 				body = modified
 			} else {
-				comment := "<!-- precompile-url: " + strings.Join(urls, " ") + " -->\n"
-				body = append([]byte(comment), body...)
+				// Fragment: one comment per URL, with the nonce on the first.
+				var comments []byte
+				for i, u := range urls {
+					comment := "<!-- "
+					if i == 0 && dw.nonce != "" {
+						comment += "ds-nonce: " + dw.nonce + " "
+					}
+					comment += "precompile-url: " + u + " -->\n"
+					comments = append(comments, comment...)
+				}
+				body = append(comments, body...)
 			}
 		}
+	} else if dw.nonce != "" && !looksLikeFullDocument(body) {
+		// No expressions but nonce is active: still tell the client the nonce
+		// so elements on this fragment pass the bloom filter check.
+		comment := "<!-- ds-nonce: " + dw.nonce + " -->\n"
+		body = append([]byte(comment), body...)
 	}
 	if dw.code != 0 {
 		dw.ResponseWriter.WriteHeader(dw.code)
@@ -448,6 +463,13 @@ func (sw *sseWriter) processEvent(event []byte) error {
 		}
 	}
 	html := strings.Join(parts, "\n")
+
+	// Inject the nonce so the client can register it in the bloom filter before
+	// evaluating expressions on the patched elements.
+	if sw.nonce != "" {
+		event = bytes.Replace(event, []byte(elementsPrefix),
+			[]byte("data: dsNonce "+sw.nonce+"\n"+elementsPrefix), 1)
+	}
 
 	if entries := scanHTML([]byte(html), sw.nonce); len(entries) > 0 {
 		if urls, err := sw.p.buildSignedURLs(entries); err == nil {

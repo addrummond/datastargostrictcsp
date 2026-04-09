@@ -128,7 +128,7 @@
   </style>
 </head>
 <body>
-  <div class="container" data-signals="{count: 0, newTodo: '', newTodo2: '', text: ''}">
+  <div class="container" data-ds-nonce="{{$.Nonce}}" data-signals="{count: 0, newTodo: '', newTodo2: '', text: ''}">
     <header>
       <h1>Datastar Demo</h1>
       <p>Interactive SSE + reactive signals example</p>
@@ -139,47 +139,48 @@
       <!-- Counter: server manages count, signals keep UI in sync -->
       <div class="card">
         <h2>Counter</h2>
-        <span class="counter-num" data-text="$count">0</span>
+        <span class="counter-num" data-ds-nonce="{{$.Nonce}}" data-text="$count">0</span>
         <div class="counter-btns">
-          <button class="big" data-on:click="@post('/api/counter/decrement')">−</button>
-          <button data-on:click="@post('/api/counter/reset')">Reset</button>
-          <button class="big" data-on:click="@post('/api/counter/increment')">+</button>
+          <button class="big" data-ds-nonce="{{$.Nonce}}" data-on:click="@post('/api/counter/decrement')">−</button>
+          <button data-ds-nonce="{{$.Nonce}}" data-on:click="@post('/api/counter/reset')">Reset</button>
+          <button class="big" data-ds-nonce="{{$.Nonce}}" data-on:click="@post('/api/counter/increment')">+</button>
         </div>
-        <p class="hint" data-show="$count >= 10" style="display:none">Getting high!</p>
-        <p class="hint" data-show="$count < 0" style="display:none">Negative territory!</p>
+        <p class="hint" data-ds-nonce="{{$.Nonce}}" data-show="$count >= 10" style="display:none">Getting high!</p>
+        <p class="hint" data-ds-nonce="{{$.Nonce}}" data-show="$count < 0" style="display:none">Negative territory!</p>
       </div>
 
       <!-- Text Analyzer: purely client-side via data-computed signals -->
       <div class="card"
+           data-ds-nonce="{{$.Nonce}}"
            data-computed:wc="$text.trim()===''?0:$text.trim().split(/\s+/).length"
            data-computed:lc="$text===''?0:$text.split('\n').length">
         <h2>Text Analyzer</h2>
-        <textarea data-bind:text placeholder="Start typing…" rows="5"></textarea>
+        <textarea data-ds-nonce="{{$.Nonce}}" data-bind:text placeholder="Start typing…" rows="5"></textarea>
         <div class="stats">
           <div class="stat">
-            <span class="stat-val" data-text="$text.length">0</span>
+            <span class="stat-val" data-ds-nonce="{{$.Nonce}}"  data-text="$text.length">0</span>
             <span class="stat-lbl">Chars</span>
           </div>
           <div class="stat">
-            <span class="stat-val" data-text="$wc">0</span>
+            <span class="stat-val" data-ds-nonce="{{$.Nonce}}"  data-text="$wc">0</span>
             <span class="stat-lbl">Words</span>
           </div>
           <div class="stat">
-            <span class="stat-val" data-text="$lc">0</span>
+            <span class="stat-val" data-ds-nonce="{{$.Nonce}}" data-text="$lc">0</span>
             <span class="stat-lbl">Lines</span>
           </div>
         </div>
-        <p class="hint" data-show="$text.length > 150" style="display:none">Quite a bit of text!</p>
+        <p class="hint" data-ds-nonce="{{$.Nonce}}" data-show="$text.length > 150" style="display:none">Quite a bit of text!</p>
       </div>
 
       <!-- Todo List: server-side state, fragments keep DOM in sync -->
       <div class="card">
         <h2>Todo List</h2>
         <div class="add-row">
-          <input type="text" data-bind:new-todo placeholder="What needs to be done?"
-                 data-on:keydown="evt.key==='Enter'&&@post('/api/todos')" />
-          <button data-attr:disabled="$newTodo.trim()===''?true:null"
-                  data-on:click="@post('/api/todos')">Add</button>
+          <input type="text" data-ds-nonce="{{$.Nonce}}" data-bind:new-todo placeholder="What needs to be done?"
+                 data-ds-nonce="{{$.Nonce}}" data-on:keydown="evt.key==='Enter'&&@post('/api/todos')" />
+          <button data-ds-nonce="{{$.Nonce}}" data-attr:disabled="$newTodo.trim()===''?true:null"
+                  data-ds-nonce="{{$.Nonce}}" data-on:click="@post('/api/todos')">Add</button>
         </div>
         {{template "todoList" .}}
       </div>
@@ -188,16 +189,16 @@
       <div class="card">
         <h2>Todo List (non-SSE handlers)</h2>
         <div class="add-row">
-          <input type="text" data-bind:new-todo2 placeholder="What needs to be done?"
-                 data-on:keydown="evt.key==='Enter'&&@post('/api/todos-plain')" />
-          <button data-attr:disabled="$newTodo2.trim()===''?true:null"
-                  data-on:click="@post('/api/todos-plain')">Add</button>
+          <input type="text" data-ds-nonce="{{$.Nonce}}" data-bind:new-todo2 placeholder="What needs to be done?"
+                 data-ds-nonce="{{$.Nonce}}" data-on:keydown="evt.key==='Enter'&&@post('/api/todos-plain')" />
+          <button data-ds-nonce="{{$.Nonce}}" data-attr:disabled="$newTodo2.trim()===''?true:null"
+                  data-ds-nonce="{{$.Nonce}}" data-on:click="@post('/api/todos-plain')">Add</button>
         </div>
-        <div id="todo-plain-list" data-init="@get('/api/todos-plain')"></div>
+        <div id="todo-plain-list" data-ds-nonce="{{$.Nonce}}" data-init="@get('/api/todos-plain')"></div>
       </div>
 
       <!-- Live Clock: SSE streaming patches the DOM every second -->
-      <div class="card" data-init="@get('/api/clock')">
+      <div class="card" data-ds-nonce="{{$.Nonce}}" data-init="@get('/api/clock')">
         <h2>Live Clock</h2>
         <div id="clock-display">
           <span class="clock-time">--:--:--</span>

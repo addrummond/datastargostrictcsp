@@ -14,7 +14,7 @@
   // the newly-demoted filter is cleared. Membership tests check both filters,
   // so the effective window always covers the last ~2000 nonces.
   // FP rate: ~0.04% at 1000 nonces per filter.
-  const M = (1 << 14);
+  const M = 1 << 14;
   let cur = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, current window
   let old = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, previous window
   let insertCount = 0;
@@ -60,9 +60,9 @@
   // root of each inserted subtree is added to `cursed` if it is not inserted
   // via a legitimate Datastar patching operation. The isBlessed function walks
   // up the ancestor chain, looking for either a blessed or a cursed ancestor.
-  // To make repeated checks faster for blessed nodes, we add the 5th ancestor
-  // of a blessed node to the blessed set after the initial successful walk to
-  // the blessed root.
+  // To make repeated checks faster, we add the 5th ancestor of a
+  // blessed/cursed node to the blessed/cursed set after the initial walk to
+  // the blessed/cursed ancestor.
   //
   // This protection is complementary to the nonce bloom filter: the nonce
   // filter is opt-in (activated only when a precompile script calls
@@ -205,26 +205,41 @@
     });
   }
 
-  const COMMENT_RE = /^<!--\s*precompile-url:\s*(.*?)\s*-->\n?/;
+  // Matches <!-- [ds-nonce: NONCE] [precompile-url: URL] --> (capture 1: nonce, capture 2: URL).
+  // Both parts are optional but at least one must be present (checked in code).
+  // The server always emits a space before --> so \S+ cleanly stops at the right boundary.
+  const COMMENT_RE =
+    /^<!--\s*(?:ds-nonce:\s*(\S+))?\s*(?:precompile-url:\s*(\S+))?\s*-->\n?/;
 
   document.addEventListener("datastar-fetch", (evt) => {
     if (evt.detail.type !== "datastar-patch-elements") return;
     const argsRaw = evt.detail.argsRaw;
 
-    let urls;
+    // SSE path: register nonce immediately so bloom checks pass on patched elements.
+    if (argsRaw.dsNonce) {
+      window.__ds_bloom_add?.(argsRaw.dsNonce);
+      delete argsRaw.dsNonce;
+    }
+
+    let urls = null;
     if (argsRaw.precompileUrl) {
       // SSE path: precompile URLs in a data: precompileUrl field.
       urls = argsRaw.precompileUrl.split(" ");
       delete argsRaw.precompileUrl;
     } else if (argsRaw.elements) {
-      // text/html path: precompile URLs embedded as an HTML comment.
-      const m = argsRaw.elements.match(COMMENT_RE);
-      if (!m) return;
-      urls = m[1].split(" ");
-      argsRaw.elements = argsRaw.elements.slice(m[0].length);
-    } else {
-      return;
+      // text/html path: one comment per URL (nonce on the first), consume all.
+      urls = [];
+      let rest = argsRaw.elements;
+      for (let m; (m = rest.match(COMMENT_RE)) && (m[1] || m[2]); ) {
+        if (m[1]) window.__ds_bloom_add?.(m[1]);
+        if (m[2]) urls.push(m[2]);
+        rest = rest.slice(m[0].length);
+      }
+      argsRaw.elements = rest;
+      if (!urls.length) urls = null;
     }
+
+    if (!urls) return;
 
     evt.stopImmediatePropagation();
 

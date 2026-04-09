@@ -150,7 +150,7 @@ To protect fully against injection attacks, we need to know that any given Datas
 
 To do this, we can create a one-off random value (a 'nonce') and add it alongside the other Datastar attributes as `data-ds-nonce="$VAL"`. The middleware precompiles only those Datastar expressions accompanied by the correct nonce. Meanwhile, the client intercepts Datastar's DOM patching and also checks the nonce, providing another layer of protection against client-side injection.
 
-Manually adding nonce attributes to your HTML is tedious. This module provides a utility function, `AddNonceToTemplate`, which takes a Go `html/template` string and adds `data-ds-nonce="{{$.Nonce}}"` before an element's first Datastar attribute.
+Manually adding nonce attributes to your HTML is tedious. You'd probably want to find a way of setting up your templating system to automatically add a `data-ds-nonce` attribute to any tag with other Datastar attributes.
 
 How to modify your app to use nonces:
 
@@ -162,19 +162,7 @@ How to modify your app to use nonces:
 http.ListenAndServe(":8080", datastargostrictcsp.NonceMiddleware(pc.Middleware(mux)))
 ```
 
-**3.** Include a `Nonce` field in your template data and apply `AddNonceToTemplate` once at startup:
-
-```go
-type pageData struct {
-    Items []Item
-    Nonce string
-}
-
-var tmpl = template.Must(template.New("").Parse(
-	  // Use `{{$.Nonce}}` rather than `{{.Nonce}}` (because inside a range block, `.` rebinds to the loop element).
-    datastargostrictcsp.AddNonceToTemplate(pageHTML, "{{$.Nonce}}"),
-))
-```
+**3.** Include a `Nonce` field in your template data and ensure that your templates add the required `data-ds-nonce` attributes.
 
 **4.** Pass the nonce when rendering:
 
