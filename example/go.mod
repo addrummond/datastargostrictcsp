@@ -2,17 +2,16 @@ module github.com/addrummond/datastargostrictcsp-example
 
 require (
 	github.com/addrummond/datastargostrictcsp v0.0.0-unpublished
+	github.com/air-verse/air v1.64.5
 	github.com/starfederation/datastar-go v1.1.0
 )
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/CAFxX/httpcompression v0.0.9 // indirect
-	github.com/air-verse/air v1.64.5 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bep/godartsass/v2 v2.5.0 // indirect
 	github.com/bep/golibsass v1.2.0 // indirect
-	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
