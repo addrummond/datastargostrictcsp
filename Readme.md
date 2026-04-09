@@ -164,7 +164,7 @@ http.ListenAndServe(":8080", datastargostrictcsp.NonceMiddleware(pc.Middleware(m
 
 **3.** Include a `Nonce` field in your template data and ensure that your templates add the required `data-ds-nonce` attributes.
 
-**4.** Pass the nonce when rendering:
+**4.** Pass the nonce when rendering HTML pages or fragments:
 
 ```go
 func handleIndex(w http.ResponseWriter, r *http.Request) {
