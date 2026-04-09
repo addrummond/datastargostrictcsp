@@ -41,7 +41,12 @@ var (
 		{ID: 1, Text: "Learn Datastar", Completed: false},
 		{ID: 2, Text: "Build something cool", Completed: false},
 	}
-	nextID = 3
+	nextID     = 3
+	todosPlain = []Todo{
+		{ID: 1, Text: "Learn Datastar", Completed: false},
+		{ID: 2, Text: "Build something cool", Completed: false},
+	}
+	nextIDPlain = 3
 )
 
 // ── templates ─────────────────────────────────────────────────────────────────
@@ -168,8 +173,8 @@ func renderTodoList(nonce string) (string, error) {
 
 func renderTodoListPlain(nonce string) (string, error) {
 	mu.Lock()
-	ts := make([]Todo, len(todos))
-	copy(ts, todos)
+	ts := make([]Todo, len(todosPlain))
+	copy(ts, todosPlain)
 	mu.Unlock()
 
 	var buf bytes.Buffer
@@ -207,8 +212,8 @@ func handleTodosPlainAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mu.Lock()
-	todos = append(todos, Todo{ID: nextID, Text: text})
-	nextID++
+	todosPlain = append(todosPlain, Todo{ID: nextIDPlain, Text: text})
+	nextIDPlain++
 	mu.Unlock()
 	writePlainFragment(w, datastargostrictcsp.NonceFromContext(r.Context()))
 }
@@ -220,9 +225,9 @@ func handleTodosPlainToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mu.Lock()
-	for i := range todos {
-		if todos[i].ID == id {
-			todos[i].Completed = !todos[i].Completed
+	for i := range todosPlain {
+		if todosPlain[i].ID == id {
+			todosPlain[i].Completed = !todosPlain[i].Completed
 			break
 		}
 	}
@@ -237,9 +242,9 @@ func handleTodosPlainDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mu.Lock()
-	for i, t := range todos {
+	for i, t := range todosPlain {
 		if t.ID == id {
-			todos = append(todos[:i], todos[i+1:]...)
+			todosPlain = append(todosPlain[:i], todosPlain[i+1:]...)
 			break
 		}
 	}
