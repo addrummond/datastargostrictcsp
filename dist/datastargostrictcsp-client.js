@@ -14,7 +14,7 @@
   // the newly-demoted filter is cleared. Membership tests check both filters,
   // so the effective window always covers the last ~2000 nonces.
   // FP rate: ~0.04% at 1000 nonces per filter.
-  const M = 16384; // 2^14 — power-of-two enables fast & instead of %
+  const M = (1 << 14);
   let cur = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, current window
   let old = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, previous window
   let insertCount = 0;
