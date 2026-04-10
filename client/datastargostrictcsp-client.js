@@ -48,10 +48,15 @@
     nonceCheckActive = true;
   }
 
-  bloomAdd(
-    document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')
-      ?.content,
-  );
+  function addDocNonce() {
+    bloomAdd(
+      document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')
+        ?.content,
+    );
+  }
+  addDocNonce();
+  // in case some browsers don't allow sync reading of earlier <meta>
+  document.addEventListener("DOMContentLoaded", addDocNonce);
 
   let lastNonce = ""; // fast path: skip bloom lookup when nonce matches last valid hit
   // </nonce_check>
