@@ -1,4 +1,4 @@
-package datastargostrictcsp_test
+package datastargostrictcsp
 
 import (
 	"context"
@@ -6,13 +6,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	dscsp "github.com/addrummond/datastargostrictcsp"
 )
 
-func testPrecompiler(t *testing.T) *dscsp.Precompiler {
+func testPrecompiler(t *testing.T) *Precompiler {
 	t.Helper()
-	var p dscsp.Precompiler
+	var p Precompiler
 	for i := range p.Key {
 		p.Key[i] = byte(i + 1)
 	}
@@ -20,7 +18,7 @@ func testPrecompiler(t *testing.T) *dscsp.Precompiler {
 }
 
 func TestNonceFromContext_EmptyByDefault(t *testing.T) {
-	if got := dscsp.NonceFromContext(context.Background()); got != "" {
+	if got := NonceFromContext(context.Background()); got != "" {
 		t.Errorf("expected empty string from bare context, got %q", got)
 	}
 }
@@ -28,8 +26,8 @@ func TestNonceFromContext_EmptyByDefault(t *testing.T) {
 func TestMiddlewareWithNonce_SetsNonceInContext(t *testing.T) {
 	p := testPrecompiler(t)
 	var got string
-	handler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = dscsp.NonceFromContext(r.Context())
+	handler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = NonceFromContext(r.Context())
 		w.Write([]byte(`<p>hi</p>`))
 	})))
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
@@ -116,8 +114,8 @@ func TestMiddleware_Fragment_PrependsComment(t *testing.T) {
 func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 	p := testPrecompiler(t)
 
-	handler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		nonce := dscsp.NonceFromContext(r.Context())
+	handler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonce := NonceFromContext(r.Context())
 		w.Write([]byte(`<html><head></head><body>` +
 			`<div data-text="signalA" data-ds-nonce="` + nonce + `"></div>` +
 			`<div data-text="signalB"></div>` +
@@ -140,7 +138,7 @@ func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 func TestMiddleware_WithNonce_NoMatchingElements(t *testing.T) {
 	p := testPrecompiler(t)
 
-	handler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Element has a DS attr but no matching nonce attribute
 		w.Write([]byte(`<html><head></head><body><div data-text="x"></div></body></html>`))
 	})))
@@ -155,7 +153,7 @@ func TestMiddleware_WithNonce_NoMatchingElements(t *testing.T) {
 }
 
 func TestMiddleware_ZeroKey_PassesThroughUnchanged(t *testing.T) {
-	var p dscsp.Precompiler // zero key
+	var p Precompiler // zero key
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html><head></head><body><div data-text="x"></div></body></html>`))
@@ -172,7 +170,7 @@ func TestMiddleware_ZeroKey_PassesThroughUnchanged(t *testing.T) {
 
 // scriptURLFromPage runs Middleware against a page containing the given body
 // HTML and returns the first script src URL injected.
-func scriptURLFromPage(t *testing.T, p *dscsp.Precompiler, body string) string {
+func scriptURLFromPage(t *testing.T, p *Precompiler, body string) string {
 	t.Helper()
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html><head></head><body>` + body + `</body></html>`))
@@ -245,8 +243,8 @@ func TestScriptHandler_WithNonce_EmitsBloomAdd(t *testing.T) {
 	p := testPrecompiler(t)
 
 	var capturedNonce string
-	pageHandler := dscsp.NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedNonce = dscsp.NonceFromContext(r.Context())
+	pageHandler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedNonce = NonceFromContext(r.Context())
 		w.Write([]byte(`<html><head></head><body>` +
 			`<div data-text="x" data-ds-nonce="` + capturedNonce + `"></div>` +
 			`</body></html>`))
@@ -269,7 +267,7 @@ func TestScriptHandler_WrongKeyRejectsToken(t *testing.T) {
 	url := scriptURLFromPage(t, p1, `<div data-text="x"></div>`)
 
 	// Different key
-	var p2 dscsp.Precompiler
+	var p2 Precompiler
 	for i := range p2.Key {
 		p2.Key[i] = 0xff
 	}
@@ -363,5 +361,120 @@ func TestSSEMiddleware_MultipleEventsInOneBatch(t *testing.T) {
 	}
 	if !strings.Contains(got, "data: precompileUrl") {
 		t.Errorf("precompileUrl should be injected into patch event\ngot: %q", got)
+	}
+}
+
+func TestInjectIntoHead(t *testing.T) {
+	meta := []byte(`<meta name="x" content="nonce">`)
+	scripts := []byte(`<script src="precompile.js"></script>`)
+
+	tests := []struct {
+		name             string
+		input            string
+		wantMetaBefore   string
+		wantMetaAfter    string
+		wantScriptBefore string
+		wantOK           bool
+	}{
+		{
+			name:             "meta inserted before first non-meta tag in head",
+			input:            `<html><head><script src="client.js"></script></head><body></body></html>`,
+			wantMetaBefore:   `<script src="client.js">`,
+			wantScriptBefore: `</head>`,
+			wantOK:           true,
+		},
+		{
+			name:             "meta inserted after existing meta tags, before first non-meta",
+			input:            `<html><head><meta charset="UTF-8"><title>T</title></head><body></body></html>`,
+			wantMetaAfter:    `<meta charset="UTF-8">`,
+			wantMetaBefore:   `<title>T</title>`,
+			wantScriptBefore: `</head>`,
+			wantOK:           true,
+		},
+		{
+			name:             "empty head: both inserted before </head>",
+			input:            `<html><head></head><body></body></html>`,
+			wantMetaBefore:   `</head>`,
+			wantScriptBefore: `</head>`,
+			wantOK:           true,
+		},
+		{
+			name:             "head contains only meta tags: inserted before </head>",
+			input:            `<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"></head><body></body></html>`,
+			wantMetaAfter:    `<meta name="viewport" content="width=device-width">`,
+			wantMetaBefore:   `</head>`,
+			wantScriptBefore: `</head>`,
+			wantOK:           true,
+		},
+		{
+			name:             "no </head> but <body> present: both injected before <body>",
+			input:            `<html><body><p>hi</p></body></html>`,
+			wantMetaBefore:   `<body>`,
+			wantScriptBefore: `<body>`,
+			wantOK:           true,
+		},
+		{
+			name:   "no </head> and no <body>: no injection",
+			input:  `<html><p>hi</p></html>`,
+			wantOK: false,
+		},
+		{
+			name:   "fragment (not a full document): no injection",
+			input:  `<div><p>hi</p></div>`,
+			wantOK: false,
+		},
+		{
+			name:             "doctype triggers full-document detection",
+			input:            `<!DOCTYPE html><html><head></head><body></body></html>`,
+			wantMetaBefore:   `</head>`,
+			wantScriptBefore: `</head>`,
+			wantOK:           true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out, ok := injectIntoHead([]byte(tc.input), meta, scripts)
+			if ok != tc.wantOK {
+				t.Fatalf("ok=%v, want %v; output: %s", ok, tc.wantOK, out)
+			}
+			if !ok {
+				return
+			}
+			s := string(out)
+			metaStr := string(meta)
+			scriptStr := string(scripts)
+
+			metaIdx := strings.Index(s, metaStr)
+			if metaIdx < 0 {
+				t.Fatalf("meta not found in output: %s", s)
+			}
+			scriptIdx := strings.Index(s, scriptStr)
+			if scriptIdx < 0 {
+				t.Fatalf("scripts not found in output: %s", s)
+			}
+
+			if tc.wantMetaBefore != "" {
+				if i := strings.Index(s, tc.wantMetaBefore); i < 0 {
+					t.Errorf("wantMetaBefore %q not found in output", tc.wantMetaBefore)
+				} else if metaIdx > i {
+					t.Errorf("meta appears after %q in output:\n%s", tc.wantMetaBefore, s)
+				}
+			}
+			if tc.wantMetaAfter != "" {
+				if i := strings.Index(s, tc.wantMetaAfter); i < 0 {
+					t.Errorf("wantMetaAfter %q not found in output", tc.wantMetaAfter)
+				} else if metaIdx < i+len(tc.wantMetaAfter) {
+					t.Errorf("meta appears before end of %q in output:\n%s", tc.wantMetaAfter, s)
+				}
+			}
+			if tc.wantScriptBefore != "" {
+				if i := strings.Index(s, tc.wantScriptBefore); i < 0 {
+					t.Errorf("wantScriptBefore %q not found in output", tc.wantScriptBefore)
+				} else if scriptIdx > i {
+					t.Errorf("scripts appear after %q in output:\n%s", tc.wantScriptBefore, s)
+				}
+			}
+		})
 	}
 }

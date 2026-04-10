@@ -691,9 +691,11 @@ func looksLikeFullDocument(body []byte) bool {
 	return bytes.Contains(upper, []byte("<!DOCTYPE")) || bytes.Contains(upper, []byte("<HTML"))
 }
 
-// injectIntoHead inserts meta immediately after the opening <head> tag and
-// scripts immediately before the closing </head> tag. Either slice may be nil.
-// Returns (modified body, true) if </head> was found, (original body, false) otherwise.
+// injectIntoHead inserts meta immediately before the first non-<meta> tag in
+// <head> (or before </head> if head is empty/all-meta), and inserts scripts
+// immediately before </head>. Either slice may be nil. If no </head> is found
+// but a <body> tag is present, both are injected immediately before <body>.
+// Returns (modified body, true) on success, (original body, false) otherwise.
 func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 	// Without this heuristic check, every text/html response containing an HTML
 	// fragment would be fully scanned by the HTML tokenizer, which is wasteful.
@@ -702,39 +704,63 @@ func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 	}
 	z := html.NewTokenizer(bytes.NewReader(body))
 	pos := 0
-	headOpenEnd := -1
+	inHead := false
+	metaInsertPos := -1 // before first non-<meta> tag in head; falls back to </head>
+	bodyPos := -1       // fallback injection point if no </head> found
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
 			break
 		}
 		rawLen := len(z.Raw())
-		if tt == html.StartTagToken && headOpenEnd < 0 {
+		switch tt {
+		case html.StartTagToken, html.SelfClosingTagToken:
 			name, _ := z.TagName()
-			if string(name) == "head" {
-				headOpenEnd = pos + rawLen
-			}
-		} else if tt == html.EndTagToken {
-			name, _ := z.TagName()
-			if string(name) == "head" {
-				out := make([]byte, 0, len(body)+len(meta)+len(scripts)+2)
-				if headOpenEnd >= 0 && len(meta) > 0 {
-					out = append(out, body[:headOpenEnd]...)
-					out = append(out, '\n')
-					out = append(out, meta...)
-					out = append(out, body[headOpenEnd:pos]...)
-				} else {
-					out = append(out, body[:pos]...)
+			switch string(name) {
+			case "head":
+				inHead = true
+			case "body":
+				if bodyPos < 0 {
+					bodyPos = pos
 				}
-				out = append(out, scripts...)
-				out = append(out, '\n')
-				out = append(out, body[pos:]...)
-				return out, true
+			default:
+				if inHead && metaInsertPos < 0 && string(name) != "meta" {
+					metaInsertPos = pos
+				}
+			}
+		case html.EndTagToken:
+			name, _ := z.TagName()
+			if string(name) == "head" {
+				if metaInsertPos < 0 {
+					metaInsertPos = pos // head was empty or contained only <meta> tags
+				}
+				return splice(body, meta, metaInsertPos, scripts, pos), true
 			}
 		}
 		pos += rawLen
 	}
+	// No </head> — fall back to injecting before <body>.
+	if bodyPos >= 0 {
+		return splice(body, meta, bodyPos, scripts, bodyPos), true
+	}
 	return body, false
+}
+
+// splice builds: body[:metaAt] + meta + body[metaAt:scriptsAt] + scripts + body[scriptsAt:]
+func splice(body, meta []byte, metaAt int, scripts []byte, scriptsAt int) []byte {
+	out := make([]byte, 0, len(body)+len(meta)+len(scripts)+2)
+	if len(meta) > 0 {
+		out = append(out, body[:metaAt]...)
+		out = append(out, '\n')
+		out = append(out, meta...)
+		out = append(out, body[metaAt:scriptsAt]...)
+	} else {
+		out = append(out, body[:scriptsAt]...)
+	}
+	out = append(out, scripts...)
+	out = append(out, '\n')
+	out = append(out, body[scriptsAt:]...)
+	return out
 }
 
 // voidElements is the set of HTML void elements that have no closing tag.
