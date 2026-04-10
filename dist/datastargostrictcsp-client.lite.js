@@ -20,9 +20,11 @@
   blessed.add(document.documentElement);
 
   const mo = new MutationObserver((records) => {
+    if (blessingEnabled)
+      return;
     for (const r of records) {
       for (const node of r.addedNodes) {
-        if (node.nodeType === 1 && !blessingEnabled) cursed.add(node);
+        if (node.nodeType === 1) cursed.add(node);
       }
     }
   });
