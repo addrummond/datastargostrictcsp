@@ -224,11 +224,14 @@ func TestScriptHandler_InvalidToken(t *testing.T) {
 
 func TestScriptHandler_TamperedToken(t *testing.T) {
 	p := testPrecompiler(t)
-	url := scriptURLFromPage(t, p, `<div data-text="x"></div>`)
+	rawURL := scriptURLFromPage(t, p, `<div data-text="x"></div>`)
 
-	// Flip a byte in the signature (after the last dot)
-	dot := strings.LastIndex(url, ".")
-	tampered := url[:dot+1] + "AAAAAAAAAAAAAAAA"
+	// Replace the sig param value with an invalid one.
+	sigIdx := strings.Index(rawURL, "&sig=")
+	if sigIdx < 0 {
+		t.Fatal("no &sig= param found in URL: " + rawURL)
+	}
+	tampered := rawURL[:sigIdx] + "&sig=AAAAAAAAAAAAAAAA"
 
 	req := httptest.NewRequest("GET", tampered, nil)
 	rec := httptest.NewRecorder()

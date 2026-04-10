@@ -172,21 +172,8 @@
   // original event.
   const loadedScripts = new Set();
 
-  // Two independent 32-bit FNV-1a hashes with different seeds → effective 64-bit key.
-  // Avoids storing full (potentially large) signed URLs in the set.
-  function urlKey(s) {
-    let h0 = 0x811c9dc5,
-      h1 = 0xdeadbeef;
-    for (let i = 0; i < s.length; i++) {
-      const c = s.charCodeAt(i);
-      h0 = Math.imul(h0 ^ c, 16777619);
-      h1 = Math.imul(h1 ^ c, 16777619);
-    }
-    return (h0 >>> 0).toString(36) + "_" + (h1 >>> 0).toString(36);
-  }
-
   function loadScript(url) {
-    const key = urlKey(url);
+    const key = url.slice(url.lastIndexOf("&sig=") + 5);
     if (loadedScripts.has(key)) return Promise.resolve();
     loadedScripts.add(key);
     return new Promise((resolve) => {

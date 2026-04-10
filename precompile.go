@@ -92,47 +92,41 @@ func NonceFromContext(ctx context.Context) string {
 	return n
 }
 
-// sign encodes funcArgs as a self-contained token:
-//
-//	<base64url(JSON(funcArgs))>.<base64url(HMAC-SHA256(payload)[:12])>
-func (p *Precompiler) sign(funcArgs []string) (string, error) {
+// signURL builds a signed script URL for the given pre-encoded e values.
+// Format: <scriptPath>?e=<b64url(JSON(funcArgs))>&...&sig=<b64url(HMAC-SHA256[:12])>
+// The HMAC covers the canonical "e=...&e=..." query string.
+func (p *Precompiler) signURL(eVals []string) (string, error) {
 	if p.Key == [32]byte{} {
 		return "", errZeroKey
 	}
-	payload, err := json.Marshal(funcArgs)
-	if err != nil {
-		return "", err
-	}
+	canonical := url.Values{"e": eVals}.Encode()
 	mac := hmac.New(sha256.New, p.Key[:])
-	mac.Write(payload)
-	sig := mac.Sum(nil)[:12]
-	return base64.RawURLEncoding.EncodeToString(payload) + "." +
-		base64.RawURLEncoding.EncodeToString(sig), nil
+	mac.Write([]byte(canonical))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:12])
+	return p.scriptPath() + "?" + canonical + "&sig=" + sig, nil
 }
 
-// verify checks the token signature and returns the funcArgs on success.
+// verifyURL checks the URL-level signature and returns entries for all e params.
 // It tries Key first, then each entry in OldKeys.
-func (p *Precompiler) verify(e string) ([]string, error) {
+func (p *Precompiler) verifyURL(q url.Values) ([]precompileEntry, error) {
 	if p.Key == [32]byte{} {
 		return nil, errZeroKey
 	}
-	dot := strings.LastIndexByte(e, '.')
-	if dot < 0 {
-		return nil, errors.New("missing separator")
+	eVals := q["e"]
+	sigVals := q["sig"]
+	if len(sigVals) != 1 {
+		return nil, errors.New("missing sig")
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(e[:dot])
+	sig, err := base64.RawURLEncoding.DecodeString(sigVals[0])
 	if err != nil {
 		return nil, err
 	}
-	sig, err := base64.RawURLEncoding.DecodeString(e[dot+1:])
-	if err != nil {
-		return nil, err
-	}
+	canonical := url.Values{"e": eVals}.Encode()
 	keys := append([][32]byte{p.Key}, p.OldKeys...)
 	var matched bool
 	for _, k := range keys {
 		mac := hmac.New(sha256.New, k[:])
-		mac.Write(payload)
+		mac.Write([]byte(canonical))
 		if hmac.Equal(sig, mac.Sum(nil)[:12]) {
 			matched = true
 			break
@@ -141,11 +135,19 @@ func (p *Precompiler) verify(e string) ([]string, error) {
 	if !matched {
 		return nil, errors.New("invalid signature")
 	}
-	var funcArgs []string
-	if err := json.Unmarshal(payload, &funcArgs); err != nil {
-		return nil, err
+	entries := make([]precompileEntry, len(eVals))
+	for i, e := range eVals {
+		payload, err := base64.RawURLEncoding.DecodeString(e)
+		if err != nil {
+			return nil, err
+		}
+		var funcArgs []string
+		if err := json.Unmarshal(payload, &funcArgs); err != nil {
+			return nil, err
+		}
+		entries[i] = precompileEntry{funcArgs: funcArgs}
 	}
-	return funcArgs, nil
+	return entries, nil
 }
 
 var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
@@ -155,16 +157,10 @@ var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 // functions.
 func (p *Precompiler) ScriptHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		eParams := q["e"]
-		entries := make([]precompileEntry, 0, len(eParams))
-		for _, e := range eParams {
-			funcArgs, err := p.verify(e)
-			if err != nil {
-				http.Error(w, "invalid signature", http.StatusBadRequest)
-				return
-			}
-			entries = append(entries, precompileEntry{funcArgs: funcArgs})
+		entries, err := p.verifyURL(r.URL.Query())
+		if err != nil {
+			http.Error(w, "invalid signature", http.StatusBadRequest)
+			return
 		}
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
@@ -173,36 +169,48 @@ func (p *Precompiler) ScriptHandler() http.Handler {
 }
 
 // buildSignedURLs returns one or more signed script URLs for entries. When the
-// query string would exceed MaxURLLen the entries are split across multiple
-// URLs; all of them write into the same window.__datastar_precompiled_expressions
-// map so the JS composes cleanly. A single entry that by itself exceeds the
-// limit is emitted as its own URL rather than silently dropped.
+// URL would exceed MaxURLLen the entries are split across multiple URLs; all of
+// them write into the same window.__datastar_precompiled_expressions map so the
+// JS composes cleanly. A single entry that by itself exceeds the limit is
+// emitted as its own URL rather than silently dropped.
 func (p *Precompiler) buildSignedURLs(entries []precompileEntry) ([]string, error) {
-	base := p.scriptPath() + "?"
+	// Pre-encode all funcArgs to base64url(JSON) so each entry's contribution
+	// to the URL length is known before signing.
+	eVals := make([]string, len(entries))
+	for i, entry := range entries {
+		payload, err := json.Marshal(entry.funcArgs)
+		if err != nil {
+			return nil, err
+		}
+		eVals[i] = base64.RawURLEncoding.EncodeToString(payload)
+	}
+
+	const sigOverhead = len("&sig=") + 16 // 12 bytes = 16 base64url chars
+	prefix := p.scriptPath() + "?"
 	maxLen := p.maxURLLen()
 
 	var urls []string
 	var chunk []string
 
-	flush := func() {
-		urls = append(urls, base+url.Values{"e": chunk}.Encode())
-		chunk = nil
+	for _, ev := range eVals {
+		next := append(chunk, ev)
+		if len(chunk) > 0 && len(prefix)+len(url.Values{"e": next}.Encode())+sigOverhead > maxLen {
+			u, err := p.signURL(chunk)
+			if err != nil {
+				return nil, err
+			}
+			urls = append(urls, u)
+			chunk = []string{ev}
+		} else {
+			chunk = next
+		}
 	}
-
-	for _, entry := range entries {
-		e, err := p.sign(entry.funcArgs)
+	if len(chunk) > 0 {
+		u, err := p.signURL(chunk)
 		if err != nil {
 			return nil, err
 		}
-		if len(chunk) > 0 {
-			if len(base)+len(url.Values{"e": append(append([]string{}, chunk...), e)}.Encode()) > maxLen {
-				flush()
-			}
-		}
-		chunk = append(chunk, e)
-	}
-	if len(chunk) > 0 {
-		flush()
+		urls = append(urls, u)
 	}
 	return urls, nil
 }
