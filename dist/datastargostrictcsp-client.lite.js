@@ -1,5 +1,4 @@
 (() => {
-  function bloomAdd() {} // dummy if no nonce check included
 
   // Blessed/cursed element registry
   //
@@ -117,16 +116,7 @@
 
   function loadScript(url) {
     const key = urlKey(url);
-    if (loadedScripts.has(key)) {
-      // Script already loaded. Still register the current page nonce in case
-      // it hasn't been added yet (e.g. the initial page had no expressions,
-      // so no <script> was injected).
-      bloomAdd(
-        document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')
-          ?.content,
-      );
-      return Promise.resolve();
-    }
+    if (loadedScripts.has(key)) return Promise.resolve();
     loadedScripts.add(key);
     return new Promise((resolve) => {
       const s = document.createElement("script");
@@ -147,11 +137,6 @@
     if (evt.detail.type !== "datastar-patch-elements") return;
     const argsRaw = evt.detail.argsRaw;
 
-    // SSE path: register nonce immediately so bloom checks pass on patched elements.
-    if (argsRaw.dsNonce) {
-      bloomAdd(argsRaw.dsNonce);
-      delete argsRaw.dsNonce;
-    }
 
     let urls = null;
     if (argsRaw.precompileUrl) {
@@ -163,7 +148,6 @@
       urls = [];
       let rest = argsRaw.elements;
       for (let m; (m = rest.match(COMMENT_RE)) && (m[1] ?? m[2]); ) {
-        if (m[1]) bloomAdd(m[1]);
         if (m[2]) urls.push(m[2]);
         rest = rest.slice(m[0].length);
       }
