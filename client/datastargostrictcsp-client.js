@@ -170,9 +170,8 @@
   // We load the precompile script(s), then re-dispatch the cleaned event so
   // Datastar applies the patch with all expressions already registered.
   //
-  // Our listener is registered before Datastar's (classic script vs deferred
-  // module), so stopImmediatePropagation prevents Datastar from seeing the
-  // original event.
+  // Our listener is registered before Datastar's, so stopImmediatePropagation
+  // prevents Datastar from seeing the original event.
   const loadedScripts = new Set();
 
   function loadScript(url) {
