@@ -3,10 +3,11 @@
   // Nonce bloom filter
   //
   // Tracks per-render nonces from precompile scripts. We reject expression
-  // invocations on elements whose data-ds-nonce is not in the filter,
-  // preventing injected HTML from reusing legitimate compiled expressions.
-  // This is primarily a protection against server-side injection, but also
-  // adds an additional layer of protection against client-side injection.
+  // invocations on elements whose data-ds-nonce is not in the filter.
+  // This is primarily a protection against server-side injection (handling
+  // the case where an attacker has injected an existing precompiled attribute),
+  // but it also adds an additional layer of protection against client-side
+  // injection.
   //
   // Two rotating bloom filters, each m=2^14 bits (2 KB), k=9.
   // Insertions go into `cur`; after 1000 insertions `cur` and `old` swap and
