@@ -100,7 +100,7 @@
         return false;
       }
       if (blessed.has(node)) {
-        // Two situations to think about here.
+        // Two situations to think about here:
         //   (i)  A cursed node later gets added *within* midpoint. In that case, the walk from that node will reach the cursed node first.
         //   (ii) A cursed node later gets added *above* midpoint. In that case, midpoint will have been replaced with a new subtree, so won't be visited on the walk.
         if (midpoint) blessed.add(midpoint);
