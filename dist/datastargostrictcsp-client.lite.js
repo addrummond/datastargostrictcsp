@@ -22,9 +22,7 @@
   const mo = new MutationObserver((records) => {
     for (const r of records) {
       for (const node of r.addedNodes) {
-        if (node.nodeType === 1 && !blessingEnabled && isBlessed(node)) {
-          cursed.add(node);
-        }
+        if (node.nodeType === 1 && !blessingEnabled) cursed.add(node);
       }
     }
   });
@@ -47,6 +45,9 @@
         return false;
       }
       if (blessed.has(node)) {
+        // Two situations to think about here.
+        //   (i)  A cursed node later gets added *within* midpoint. In that case, the walk from that node will reach the cursed node first.
+        //   (ii) A cursed node later gets added *above* midpoint. In that case, midpoint will have been replaced with a new subtree, so won't be visited on the walk.
         if (midpoint) blessed.add(midpoint);
         return true;
       }
