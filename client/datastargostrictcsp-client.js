@@ -189,7 +189,6 @@
 
   // Matches <!-- [ds-nonce: NONCE] [precompile-url: URL] --> (capture 1: nonce, capture 2: URL).
   // Both parts are optional but at least one must be present (checked in code).
-  // The server always emits a space before --> so \S+ cleanly stops at the right boundary.
   const COMMENT_RE =
     /^<!--\s*(?:ds-nonce:\s*(\S+))?\s*(?:precompile-url:\s*(\S+))?\s*-->\n?/;
 
