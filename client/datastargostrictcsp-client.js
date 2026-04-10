@@ -3,8 +3,7 @@
   // Nonce bloom filter
   //
   // Tracks per-render nonces from precompile scripts. We reject expression
-  // invocations on elements whose data-ds-nonce is not in the filter,
-  // preventing injected HTML from reusing legitimate compiled expressions.
+  // invocations on elements whose data-ds-nonce is not in the filter.
   // This is primarily a protection against server-side injection, but also
   // adds an additional layer of protection against client-side injection.
   //
