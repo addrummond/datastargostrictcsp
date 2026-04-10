@@ -76,8 +76,7 @@
   blessed.add(document.documentElement);
 
   const mo = new MutationObserver((records) => {
-    if (blessingEnabled)
-      return;
+    if (blessingEnabled) return;
     for (const r of records) {
       for (const node of r.addedNodes) {
         if (node.nodeType === 1) cursed.add(node);
@@ -170,9 +169,8 @@
   // We load the precompile script(s), then re-dispatch the cleaned event so
   // Datastar applies the patch with all expressions already registered.
   //
-  // Our listener is registered before Datastar's (classic script vs deferred
-  // module), so stopImmediatePropagation prevents Datastar from seeing the
-  // original event.
+  // Our listener is registered before Datastar's, so stopImmediatePropagation
+  // prevents Datastar from seeing the original event.
   const loadedScripts = new Set();
 
   function loadScript(url) {
@@ -190,7 +188,6 @@
 
   // Matches <!-- [ds-nonce: NONCE] [precompile-url: URL] --> (capture 1: nonce, capture 2: URL).
   // Both parts are optional but at least one must be present (checked in code).
-  // The server always emits a space before --> so \S+ cleanly stops at the right boundary.
   const COMMENT_RE =
     /^<!--\s*(?:ds-nonce:\s*(\S+))?\s*(?:precompile-url:\s*(\S+))?\s*-->\n?/;
 
