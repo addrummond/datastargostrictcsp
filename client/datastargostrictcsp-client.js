@@ -1,13 +1,12 @@
 (() => {
+  function bloomAdd() {} // dummy if no nonce check included
   // <nonce_check>
   // Nonce bloom filter
   //
-  // Tracks per-render nonces from precompile scripts. Each precompile script
-  // calls window.__ds_bloom_add(nonce), reading the nonce from the
-  // <meta name="datastargostrictcsp-ds-nonce"> tag injected by the server middleware. The proxy
-  // then rejects expression invocations on elements whose data-ds-nonce is not
-  // in the filter, preventing injected HTML (e.g. via a vulnerable innerHTML
-  // assignment) from reusing legitimate compiled expressions.
+  // Tracks per-render nonces from precompile scripts. We reject expression
+  // invocations on elements whose data-ds-nonce is not in the filter,
+  // preventing injected HTML (e.g. via a vulnerable innerHTML assignment)
+  // from reusing legitimate compiled expressions.
   //
   // Two rotating bloom filters, each m=2^14 bits (2 KB), k=9.
   // Insertions go into `cur`; after 1000 insertions `cur` and `old` swap and
@@ -36,8 +35,7 @@
     return bloomOp(cur, s, false) || bloomOp(old, s, false);
   }
 
-  // Called by each precompile script to register its render nonce.
-  window.__ds_bloom_add = (nonce) => {
+  function bloomAdd(nonce) {
     if (!nonce) return;
     if (++insertCount > 1000) {
       old.fill(0);
@@ -48,7 +46,12 @@
     }
     bloomOp(cur, nonce, true);
     nonceCheckActive = true;
-  };
+  }
+
+  bloomAdd(
+    document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')
+      ?.content,
+  );
 
   let lastNonce = ""; // fast path: skip bloom lookup when nonce matches last valid hit
   // </nonce_check>
@@ -65,8 +68,7 @@
   // the blessed/cursed ancestor.
   //
   // This protection is complementary to the nonce bloom filter: the nonce
-  // filter is opt-in (activated only when a precompile script calls
-  // __ds_bloom_add); the blessing check is always active.
+  // filter is opt-in; the blessing check is always active.
   const blessed = new WeakSet();
   const cursed = new WeakSet();
   let blessingEnabled = false;
@@ -189,7 +191,7 @@
       // Script already loaded. Still register the current page nonce in case
       // it hasn't been added yet (e.g. the initial page had no expressions,
       // so no <script> was injected).
-      window.__ds_bloom_add?.(
+      bloomAdd(
         document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')
           ?.content,
       );
@@ -217,7 +219,7 @@
 
     // SSE path: register nonce immediately so bloom checks pass on patched elements.
     if (argsRaw.dsNonce) {
-      window.__ds_bloom_add?.(argsRaw.dsNonce);
+      bloomAdd(argsRaw.dsNonce);
       delete argsRaw.dsNonce;
     }
 
@@ -231,7 +233,7 @@
       urls = [];
       let rest = argsRaw.elements;
       for (let m; (m = rest.match(COMMENT_RE)) && (m[1] ?? m[2]); ) {
-        if (m[1]) window.__ds_bloom_add?.(m[1]);
+        if (m[1]) bloomAdd(m[1]);
         if (m[2]) urls.push(m[2]);
         rest = rest.slice(m[0].length);
       }

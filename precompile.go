@@ -386,9 +386,7 @@ func (dw *detectWriter) flush() {
 	if len(entries) > 0 {
 		if urls, err := dw.p.buildSignedURLs(entries); err == nil {
 			dw.ResponseWriter.Header().Del("Content-Length")
-			inject := nonceMeta(dw.nonce)
-			inject = append(inject, scriptTags(urls)...)
-			if modified, ok := injectBeforeHeadClose(body, inject); ok {
+			if modified, ok := injectIntoHead(body, nonceMeta(dw.nonce), scriptTags(urls)); ok {
 				body = modified
 			} else {
 				// Fragment: one comment per URL, with the nonce on the first.
@@ -624,7 +622,6 @@ func buildJS(entries []precompileEntry) []byte {
 
 	var b strings.Builder
 	b.WriteString("(function(){\n")
-	b.WriteString("window.__ds_bloom_add&&window.__ds_bloom_add(document.querySelector('meta[name=\"datastargostrictcsp-ds-nonce\"]')?.content);\n")
 	b.WriteString("const p=window.__datastar_precompiled_expressions=window.__datastar_precompiled_expressions||new Map();\nfunction s(x,y){return p.set(JSON.stringify(x),y)}\n")
 
 	// One helper per unique param signature.
@@ -694,9 +691,10 @@ func looksLikeFullDocument(body []byte) bool {
 	return bytes.Contains(upper, []byte("<!DOCTYPE")) || bytes.Contains(upper, []byte("<HTML"))
 }
 
-// injectBeforeHeadClose inserts script immediately before the closing </head> tag.
+// injectIntoHead inserts meta immediately after the opening <head> tag and
+// scripts immediately before the closing </head> tag. Either slice may be nil.
 // Returns (modified body, true) if </head> was found, (original body, false) otherwise.
-func injectBeforeHeadClose(body, script []byte) ([]byte, bool) {
+func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 	// Without this heuristic check, every text/html response containing an HTML
 	// fragment would be fully scanned by the HTML tokenizer, which is wasteful.
 	if !looksLikeFullDocument(body) {
@@ -704,18 +702,31 @@ func injectBeforeHeadClose(body, script []byte) ([]byte, bool) {
 	}
 	z := html.NewTokenizer(bytes.NewReader(body))
 	pos := 0
+	headOpenEnd := -1
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
 			break
 		}
 		rawLen := len(z.Raw())
-		if tt == html.EndTagToken {
+		if tt == html.StartTagToken && headOpenEnd < 0 {
 			name, _ := z.TagName()
 			if string(name) == "head" {
-				out := make([]byte, 0, len(body)+len(script)+2)
-				out = append(out, body[:pos]...)
-				out = append(out, script...)
+				headOpenEnd = pos + rawLen
+			}
+		} else if tt == html.EndTagToken {
+			name, _ := z.TagName()
+			if string(name) == "head" {
+				out := make([]byte, 0, len(body)+len(meta)+len(scripts)+2)
+				if headOpenEnd >= 0 && len(meta) > 0 {
+					out = append(out, body[:headOpenEnd]...)
+					out = append(out, '\n')
+					out = append(out, meta...)
+					out = append(out, body[headOpenEnd:pos]...)
+				} else {
+					out = append(out, body[:pos]...)
+				}
+				out = append(out, scripts...)
 				out = append(out, '\n')
 				out = append(out, body[pos:]...)
 				return out, true

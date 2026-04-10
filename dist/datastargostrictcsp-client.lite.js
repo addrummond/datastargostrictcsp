@@ -1,4 +1,5 @@
 (() => {
+  function bloomAdd() {} // dummy if no nonce check included
 
   // Blessed/cursed element registry
   //
@@ -12,8 +13,7 @@
   // the blessed/cursed ancestor.
   //
   // This protection is complementary to the nonce bloom filter: the nonce
-  // filter is opt-in (activated only when a precompile script calls
-  // __ds_bloom_add); the blessing check is always active.
+  // filter is opt-in; the blessing check is always active.
   const blessed = new WeakSet();
   const cursed = new WeakSet();
   let blessingEnabled = false;
@@ -121,7 +121,7 @@
       // Script already loaded. Still register the current page nonce in case
       // it hasn't been added yet (e.g. the initial page had no expressions,
       // so no <script> was injected).
-      window.__ds_bloom_add?.(
+      bloomAdd(
         document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')
           ?.content,
       );
@@ -149,7 +149,7 @@
 
     // SSE path: register nonce immediately so bloom checks pass on patched elements.
     if (argsRaw.dsNonce) {
-      window.__ds_bloom_add?.(argsRaw.dsNonce);
+      bloomAdd(argsRaw.dsNonce);
       delete argsRaw.dsNonce;
     }
 
@@ -163,7 +163,7 @@
       urls = [];
       let rest = argsRaw.elements;
       for (let m; (m = rest.match(COMMENT_RE)) && (m[1] ?? m[2]); ) {
-        if (m[1]) window.__ds_bloom_add?.(m[1]);
+        if (m[1]) bloomAdd(m[1]);
         if (m[2]) urls.push(m[2]);
         rest = rest.slice(m[0].length);
       }
