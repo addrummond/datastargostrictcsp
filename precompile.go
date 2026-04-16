@@ -224,7 +224,7 @@ type DatastarExpression struct {
 }
 
 // SignedURLs precompiles exprs and returns one or more signed script URLs
-// covering all of them. The URLs can be injected as <script src="..."> tags
+// covering all of them. The URLs can be injected as <script type="module" src="..."> tags
 // in any template engine. URLs are stable for a given set of expressions and
 // signing key, so they are safe to cache indefinitely.
 func (p *Precompiler) SignedURLs(exprs []DatastarExpression) ([]string, error) {
@@ -276,7 +276,7 @@ func Skip(next http.Handler) http.Handler {
 //   - text/event-stream (SSE): intercepts datastar-patch-elements events and
 //     injects a precompileUrl field so the client shim can load the precompile
 //     script before Datastar applies the patch.
-//   - text/html (full page): injects <script src="..."> tags before </head>.
+//   - text/html (full page): injects <script type="module" src="..."> tags before </head>.
 //   - text/html (fragment): prepends a <!-- precompile-url: ... --> comment.
 //   - anything else (JS, images, …): passed through.
 //
@@ -603,9 +603,9 @@ func buildJS(entries []precompileEntry) []byte {
 	// Each unique param signature gets one helper that handles the
 	// p.set(JSON.stringify([...params, b]), fn) boilerplate.
 	type group struct {
-		name      string
-		paramsCSV string
-		keyPrefix string // JSON array of params with closing ] removed
+		name             string
+		dedupedParamsCSV string
+		keyPrefix        string // JSON array of params with closing ] removed
 	}
 	groupByKey := map[string]*group{}
 	var groups []*group
@@ -618,10 +618,24 @@ func buildJS(entries []precompileEntry) []byte {
 		}
 		k := string(paramsJSON)
 		if _, ok := groupByKey[k]; !ok {
+			counts := make(map[string]int, len(params))
+			for _, p := range params {
+				counts[p]++
+			}
+			seenCount := make(map[string]int, len(params))
+			deduped := make([]string, len(params))
+			for i, p := range params {
+				seenCount[p]++
+				if seenCount[p] < counts[p] {
+					deduped[i] = fmt.Sprintf("_%d%s", seenCount[p], p)
+				} else {
+					deduped[i] = p
+				}
+			}
 			g := &group{
-				name:      fmt.Sprintf("r%d", len(groups)),
-				paramsCSV: strings.Join(params, ","),
-				keyPrefix: k[:len(k)-1],
+				name:             fmt.Sprintf("r%d", len(groups)),
+				dedupedParamsCSV: strings.Join(deduped, ","),
+				keyPrefix:        k[:len(k)-1],
 			}
 			groupByKey[k] = g
 			groups = append(groups, g)
@@ -629,16 +643,15 @@ func buildJS(entries []precompileEntry) []byte {
 	}
 
 	var b strings.Builder
-	b.WriteString("(function(){\n")
-	b.WriteString("const p=window.__datastar_precompiled_expressions=window.__datastar_precompiled_expressions||new Map();\nfunction s(x,y){return p.set(JSON.stringify(x),y)}\n")
+	b.WriteString("const p=window.__datastar_precompiled_expressions\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
 
 	// One helper per unique param signature.
 	for _, g := range groups {
-		b.WriteString("function ")
+		b.WriteString("const ")
 		b.WriteString(g.name)
-		b.WriteString("(b,fn){s(")
+		b.WriteString("=(b,fn)=>s(")
 		b.WriteString(g.keyPrefix)
-		b.WriteString(",b],fn)}\n")
+		b.WriteString(",b],fn)\n")
 	}
 
 	// One call per entry.
@@ -657,18 +670,17 @@ func buildJS(entries []precompileEntry) []byte {
 		b.WriteString(g.name)
 		b.WriteByte('(')
 		b.Write(bodyJSON)
-		b.WriteString(",function(")
-		b.WriteString(g.paramsCSV)
-		b.WriteString("){")
-		b.WriteString(body)
+		b.WriteString(",(")
+		b.WriteString(g.dedupedParamsCSV)
+		b.WriteString(")=>{")
+		b.WriteString(strings.TrimSpace(body))
 		b.WriteString("})\n")
 	}
 
-	b.WriteString("})()")
 	return []byte(b.String())
 }
 
-// scriptTags renders one <script src="..."> tag per URL.
+// scriptTags renders one <script type="module" src="..."> tag per URL.
 func nonceMeta(nonce string) []byte {
 	if nonce == "" {
 		return nil
@@ -682,7 +694,7 @@ func scriptTags(urls []string) []byte {
 		if i > 0 {
 			b.WriteByte('\n')
 		}
-		b.WriteString(`<script src="`)
+		b.WriteString(`<script type="module" src="`)
 		b.WriteString(u)
 		b.WriteString(`"></script>`)
 	}

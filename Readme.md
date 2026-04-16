@@ -47,7 +47,7 @@ The signed URL reaches the client in one of three ways:
 
 **1.** Add a Content Security Policy **without** `unsafe-inline` or `unsafe-eval`.
 
-**2.** Load `dist/datastargostrictcsp-client.lite.js` via a plain `<script>` tag (not `type="module"`, `defer`, or `async`) and place it **before** the Datastar `<script type="module">` tag. Classic scripts execute before module scripts, which is how event listener ordering is guaranteed.
+**2.** Load `dist/datastargostrictcsp-client.lite.js` via a  `<script type="module" src="...">` tag (without `defer` or `async`) and place it **before** the Datastar `<script type="module">` tag.
 
 **3.** Generate a persistent 32-byte signing key (or in dev, generate a random key on start up).
 

@@ -8,9 +8,9 @@
   },
   "scripts": {
     "copy": "cp client/datastargostrictcsp-client.js dist/datastargostrictcsp-client.js",
-    "minify": "esbuild dist/datastargostrictcsp-client.js --minify --sourcemap --outfile=dist/datastargostrictcsp-client.min.js",
+    "minify": "esbuild dist/datastargostrictcsp-client.js --minify --format=esm --sourcemap --outfile=dist/datastargostrictcsp-client.min.js",
     "strip-nonce": "sed '/\\/\\/ <nonce_check>/,/\\/\\/ <\\/nonce_check>/d' dist/datastargostrictcsp-client.js > dist/datastargostrictcsp-client.lite.js",
-    "minify-lite": "esbuild dist/datastargostrictcsp-client.lite.js --minify --sourcemap --outfile=dist/datastargostrictcsp-client.lite.min.js",
+    "minify-lite": "esbuild dist/datastargostrictcsp-client.lite.js --minify --format=esm --sourcemap --outfile=dist/datastargostrictcsp-client.lite.min.js",
     "build": "npm run copy && npm run minify && npm run strip-nonce && npm run minify-lite"
   },
   "repository": {
