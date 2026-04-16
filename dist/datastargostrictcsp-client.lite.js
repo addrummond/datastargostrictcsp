@@ -114,8 +114,8 @@ function loadScript(url) {
     const s = document.createElement("script");
     s.src = url;
     s.type = "module";
-    s.onload = resolve;
-    s.onerror = resolve; // fail open: patch proceeds even if script 404s
+    s.onload = () => { s.remove(); resolve(); };
+    s.onerror = () => { s.remove(); resolve(); }; // fail open: patch proceeds even if script 404s
     document.head.appendChild(s);
   });
 }
