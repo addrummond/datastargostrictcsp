@@ -10,7 +10,7 @@ A Go package that makes [Datastar](https://data-star.dev/) compatible with a str
 
 **No `unsafe-inline`**.
 
-**2.0KB** minified client-side JS.
+**2.6KB** minified client-side JS.
 
 🚀 Minimal changes to your app. No restrictions on Datastar expressions.
 
