@@ -191,9 +191,11 @@
         <h2>Todo List (non-SSE handlers)</h2>
         <div class="add-row">
           <input type="text" data-ds-nonce="{{$.Nonce}}" data-bind:new-todo2 placeholder="What needs to be done?"
-                 data-ds-nonce="{{$.Nonce}}" data-on:keydown="evt.key==='Enter'&&@post('/api/todos-plain')" />
+                 data-ds-nonce="{{$.Nonce}}" data-on:keydown="evt.key==='Enter'&&@post('/api/todos-plain')"
+                 data-ds-nonce="{{$.Nonce}}" data-on:datastar-fetch="evt.detail.type==='finished'&&evt.detail.el===el&&($newTodo2='')" />
           <button data-ds-nonce="{{$.Nonce}}" data-attr:disabled="$newTodo2.trim()===''?true:null"
-                  data-ds-nonce="{{$.Nonce}}" data-on:click="@post('/api/todos-plain')">Add</button>
+                  data-ds-nonce="{{$.Nonce}}" data-on:click="@post('/api/todos-plain')"
+                  data-ds-nonce="{{$.Nonce}}" data-on:datastar-fetch="evt.detail.type==='finished'&&evt.detail.el===el&&($newTodo2='')">Add</button>
         </div>
         <div id="todo-plain-list" data-ds-nonce="{{$.Nonce}}" data-init="@get('/api/todos-plain')"></div>
       </div>
