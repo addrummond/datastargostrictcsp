@@ -83,6 +83,17 @@ Handlers that return non-HTML content types (JSON, JS, images, …) are automati
 mux.Handle("GET /docs", datastargostrictcsp.Skip(docsHandler))
 ```
 
+<img src="gin-icon.webp" width="32" alt="Gin">
+If you're using Gin, import the middleware/gin submodule and use dsgin.Adapt to convert any func(http.Handler) http.Handler middleware into a
+`gin.HandlerFunc`:
+
+```go
+import dsgin "github.com/addrummond/datastargostrictcsp/middleware/gin"
+
+router.Use(dsgin.Adapt(datastargostrictcsp.NonceMiddleware))
+router.Use(dsgin.Adapt(pc.Middleware))
+````
+
 ## Example app
 
 The `example/` directory contains a simple Datastar app exercising various framework features.
