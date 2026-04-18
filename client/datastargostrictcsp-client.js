@@ -152,11 +152,6 @@ const p = (window.__datastar_precompiled_expressions =
 
 function proxyHandler(args) {
   const fn = p.get(JSON.stringify(args));
-  if (!fn)
-    console.log(
-      "[datastargostrictcsp] cache miss, args:",
-      JSON.stringify(args),
-    );
   return fn ? checked(fn) : new _Function(...args);
 }
 window.Function = new Proxy(_Function, {
