@@ -90,6 +90,16 @@ router.Use(adapter.New(datastargostrictcsp.NonceMiddleware))
 router.Use(adapter.New(pc.Middleware))
 ```
 
+## Custom aliased bundles
+
+Datastar supports aliased bundles where attribute names take the form `data-{alias}-*` instead of `data-*`. If you're using one, set `Alias` on your `Precompiler`:
+
+```go
+pc.Alias = "myalias" // matches data-myalias-on:click, data-myalias-text, etc.
+```
+
+When an alias is set, only aliased attributes are recognized; standard `data-*` attributes are ignored.
+
 ## Example app
 
 The `example/` directory contains a simple Datastar app exercising various framework features.

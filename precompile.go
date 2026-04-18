@@ -53,6 +53,9 @@ type Precompiler struct {
 	OldKeys    [][32]byte
 	ScriptPath string
 	MaxURLLen  int
+	// Alias is the Datastar bundle alias, if using a custom aliased bundle.
+	// When set, attributes of the form data-{Alias}-{attr} are recognized.
+	Alias string
 }
 
 func (p *Precompiler) scriptPath() string {
@@ -390,7 +393,7 @@ func (dw *detectWriter) flush() {
 	}()
 
 	body := dw.buf.Bytes()
-	entries := scanHTML(body, dw.nonce)
+	entries := scanHTML(body, dw.nonce, dw.p.Alias)
 	if len(entries) > 0 {
 		if urls, err := dw.p.buildSignedURLs(entries); err == nil {
 			dw.ResponseWriter.Header().Del("Content-Length")
@@ -477,7 +480,7 @@ func (sw *sseWriter) processEvent(event []byte) error {
 			[]byte("data: dsNonce "+sw.nonce+"\n"+elementsPrefix), 1)
 	}
 
-	if entries := scanHTML([]byte(html), sw.nonce); len(entries) > 0 {
+	if entries := scanHTML([]byte(html), sw.nonce, sw.p.Alias); len(entries) > 0 {
 		if urls, err := sw.p.buildSignedURLs(entries); err == nil {
 			// Inject precompile URLs as a single space-separated data field.
 			// The client shim intercepts datastar-patch-elements events that
@@ -499,7 +502,7 @@ type precompileEntry struct {
 	funcArgs []string
 }
 
-func scanHTML(body []byte, nonce string) []precompileEntry {
+func scanHTML(body []byte, nonce, alias string) []precompileEntry {
 	seen := map[string]bool{}
 	var results []precompileEntry
 
@@ -572,6 +575,12 @@ func scanHTML(body []byte, nonce string) []precompileEntry {
 			base, found := strings.CutPrefix(a.key, "data-")
 			if !found {
 				continue
+			}
+			if alias != "" {
+				base, found = strings.CutPrefix(base, alias+"-")
+				if !found {
+					continue
+				}
 			}
 			if i := strings.IndexByte(base, ':'); i >= 0 {
 				base = base[:i]

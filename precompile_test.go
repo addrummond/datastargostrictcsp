@@ -187,6 +187,55 @@ func scriptURLFromPage(t *testing.T, p *Precompiler, body string) string {
 	return page[i : i+j]
 }
 
+func TestMiddleware_Alias_RecognisesAliasedAttributes(t *testing.T) {
+	p := testPrecompiler(t)
+	p.Alias = "ds"
+
+	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><head></head><body><div data-ds-text="mySignal"></div></body></html>`))
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+
+	if !strings.Contains(rec.Body.String(), "<script") {
+		t.Errorf("aliased attribute should produce a script tag;\nbody: %s", rec.Body)
+	}
+}
+
+func TestMiddleware_Alias_StandardAttributesIgnoredWhenAliasSet(t *testing.T) {
+	p := testPrecompiler(t)
+	p.Alias = "ds"
+
+	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><head></head><body><div data-text="mySignal"></div></body></html>`))
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+
+	if strings.Contains(rec.Body.String(), "<script") {
+		t.Errorf("standard (non-aliased) attribute should be ignored when alias is set;\nbody: %s", rec.Body)
+	}
+}
+
+func TestMiddleware_Alias_UnknownPrefixNotRecognized(t *testing.T) {
+	p := testPrecompiler(t)
+	p.Alias = "myalias"
+
+	// data-other-text uses a different prefix — should not be compiled.
+	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><head></head><body><div data-other-text="someSignal"></div></body></html>`))
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+
+	if strings.Contains(rec.Body.String(), "<script") {
+		t.Errorf("unrecognized prefix should not produce a script tag;\nbody: %s", rec.Body)
+	}
+}
+
 func TestScriptHandler_ValidToken(t *testing.T) {
 	p := testPrecompiler(t)
 	url := scriptURLFromPage(t, p, `<div data-text="mySignal"></div>`)
