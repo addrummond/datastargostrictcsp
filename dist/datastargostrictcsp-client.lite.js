@@ -76,8 +76,8 @@ function checked(fn) {
 // Intercepts new Function(...) calls so Datastar uses precompiled functions
 // from window.__datastar_precompiled_expressions instead of eval-ing expressions at runtime.
 const _Function = Function;
-const p = (window.__datastar_precompiled_expressions =
-  window.__datastar_precompiled_expressions ?? new Map());
+const p = new Map();
+window.__datastar_precompiled_expressions = p;
 
 function proxyHandler(args) {
   const fn = p.get(JSON.stringify(args));
@@ -109,8 +109,14 @@ function loadScript(url) {
     const s = document.createElement("script");
     s.src = url;
     s.type = "module";
-    s.onload = () => { s.remove(); resolve(); };
-    s.onerror = () => { s.remove(); resolve(); }; // fail open: patch proceeds even if script 404s
+    s.onload = () => {
+      s.remove();
+      resolve();
+    };
+    s.onerror = () => {
+      s.remove();
+      resolve();
+    }; // fail open: patch proceeds even if script 404s
     document.head.appendChild(s);
   });
 }
