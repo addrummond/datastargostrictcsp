@@ -556,8 +556,7 @@ func scanHTML(body []byte, nonce, alias string) []precompileEntry {
 
 		// When a nonce is active, only process elements that carry the matching
 		// data-ds-nonce attribute. This prevents expressions injected via
-		// untrusted HTML (e.g. via innerHTML from user input) from being
-		// included in the signed precompile URL.
+		// untrusted HTML from being included in the signed precompile URL.
 		if nonce != "" {
 			var hasNonce bool
 			for _, a := range attrs {
