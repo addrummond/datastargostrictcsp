@@ -508,6 +508,7 @@ func scanHTML(body []byte, nonce, alias string) []precompileEntry {
 
 	z := html.NewTokenizer(bytes.NewReader(body))
 	ignoreDepth := 0
+tokenLoop:
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
@@ -550,7 +551,7 @@ func scanHTML(body []byte, nonce, alias string) []precompileEntry {
 				if !isVoid {
 					ignoreDepth++
 				}
-				goto nextToken
+				continue tokenLoop
 			}
 		}
 
@@ -566,7 +567,7 @@ func scanHTML(body []byte, nonce, alias string) []precompileEntry {
 				}
 			}
 			if !hasNonce {
-				goto nextToken
+				continue tokenLoop
 			}
 		}
 
@@ -601,7 +602,6 @@ func scanHTML(body []byte, nonce, alias string) []precompileEntry {
 			}
 		}
 
-	nextToken:
 	}
 	return results
 }
