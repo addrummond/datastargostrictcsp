@@ -58,3 +58,12 @@ jobs:
             echo "::error::dist files are out of date — run 'npm run build' and commit the result"
             exit 1
           fi
+
+      - name: Verify README contains CDN link for this version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          EXPECTED="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@${VERSION}/dist/datastargostrictcsp-client.lite.min.js"
+          if ! grep -qF "$EXPECTED" Readme.md; then
+            echo "::error::Readme.md does not contain the expected CDN link for v${VERSION}: $EXPECTED"
+            exit 1
+          fi
