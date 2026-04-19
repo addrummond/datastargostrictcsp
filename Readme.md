@@ -63,10 +63,10 @@ if _, err := rand.Read(pc.Key[:]); err != nil { // ⚠️ don't use ephemeral ra
 }
 
 // Optional: override the default script path ("/ds-precompile.js").
-// pc.CustomScriptPath = "/my-custom-path.js"
+// pc.ScriptPath = "/my-custom-path.js"
 
-// Mount the script handler. pc.ScriptPath() returns the effective path.
-mux.Handle("GET "+pc.ScriptPath(), pc.ScriptHandler())
+// Mount the script handler. pc.GetScriptPath() returns the effective path.
+mux.Handle("GET "+pc.GetScriptPath(), pc.ScriptHandler())
 
 // Register all your handlers normally.
 mux.HandleFunc("GET /{$}", handleIndex)
