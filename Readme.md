@@ -37,7 +37,7 @@ The signed URL reaches the client in one of three ways:
 
 | Context | Delivery method |
 |---|---|
-| Full HTML document | `<script src="$URL">` injected before `</head>` |
+| Full HTML document | `<script type="module" src="$URL">` injected before `</head>` |
 | SSE (`datastar-patch-elements`) | `data: precompileUrl <url>` field injected; client library intercepts `datastar-fetch`, loads script, then re-dispatches |
 | Non-SSE HTML fragment | `<!-- precompile-url: <url> -->` prepended; client library strips comment, loads script, then re-dispatches |
 
