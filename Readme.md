@@ -47,7 +47,7 @@ The signed URL reaches the client in one of three ways:
 
 **1.** Add a Content Security Policy **without** `unsafe-inline` or `unsafe-eval`.
 
-**2.** **Before** the Datastar script tag, add
+**2.** Add the following **before** the Datastar script tag:
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@0.9.0/dist/datastargostrictcsp-client.lite.min.js">
 ```
