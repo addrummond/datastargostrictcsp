@@ -51,14 +51,18 @@ import (
 type Precompiler struct {
 	Key        [32]byte
 	OldKeys    [][32]byte
+	// ScriptPath overrides the default script path ("/ds-precompile.js").
+	// Use GetScriptPath() to get the effective path.
 	ScriptPath string
-	MaxURLLen  int
+	MaxURLLen        int
 	// Alias is the Datastar bundle alias, if using a custom aliased bundle.
 	// When set, attributes of the form data-{Alias}-{attr} are recognized.
 	Alias string
 }
 
-func (p *Precompiler) scriptPath() string {
+// GetScriptPath returns the effective script path: ScriptPath if set,
+// otherwise the default "/ds-precompile.js".
+func (p *Precompiler) GetScriptPath() string {
 	if p.ScriptPath != "" {
 		return p.ScriptPath
 	}
@@ -106,7 +110,7 @@ func (p *Precompiler) signURL(eVals []string) (string, error) {
 	mac := hmac.New(sha256.New, p.Key[:])
 	mac.Write([]byte(canonical))
 	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:12])
-	return p.scriptPath() + "?" + canonical + "&sig=" + sig, nil
+	return p.GetScriptPath() + "?" + canonical + "&sig=" + sig, nil
 }
 
 // verifyURL checks the URL-level signature and returns entries for all e params.
@@ -189,7 +193,7 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry) ([]string, erro
 	}
 
 	const sigOverhead = len("&sig=") + 16 // 12 bytes = 16 base64url chars
-	prefix := p.scriptPath() + "?"
+	prefix := p.GetScriptPath() + "?"
 	maxLen := p.maxURLLen()
 
 	var urls []string

@@ -391,7 +391,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	mux.Handle("GET /ds-precompile.js", pc.ScriptHandler())
+	mux.Handle("GET "+pc.GetScriptPath(), pc.ScriptHandler())
 	mux.HandleFunc("GET /{$}", handleIndex)
 	mux.HandleFunc("GET /api/todos-plain", handleTodosPlainGet)
 	mux.HandleFunc("POST /api/todos-plain", handleTodosPlainAdd)
