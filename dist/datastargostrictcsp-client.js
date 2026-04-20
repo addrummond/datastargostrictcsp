@@ -232,7 +232,6 @@ document.addEventListener("datastar-fetch", (evt) => {
   Promise.all(urls.map(loadScript)).then(() => {
     // <nonce_check>
     currentPatchNonce = patchNonce;
-    if (patchNonce !== null) nonceCheckActive = true;
     // </nonce_check>
     blessingEnabled = true;
     document.dispatchEvent(
