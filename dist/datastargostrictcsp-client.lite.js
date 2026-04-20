@@ -10,8 +10,8 @@
 // blessed/cursed node to the blessed/cursed set after the initial walk to
 // the blessed/cursed ancestor.
 //
-// This protection is complementary to the nonce bloom filter: the nonce
-// filter is opt-in; the blessing check is always active.
+// This protection is complementary to the nonce check: the nonce check is
+// opt-in; the blessing check is always active.
 const blessed = new WeakSet();
 const cursed = new WeakSet();
 let blessingEnabled = false;
@@ -19,10 +19,12 @@ let blessingEnabled = false;
 blessed.add(document.documentElement);
 
 const mo = new MutationObserver((records) => {
-  if (blessingEnabled) return;
   for (const r of records) {
     for (const node of r.addedNodes) {
-      if (node.nodeType === 1) cursed.add(node);
+      if (node.nodeType !== 1) continue;
+      if (!blessingEnabled) {
+        cursed.add(node);
+      }
     }
   }
 });
@@ -56,6 +58,7 @@ function isBlessed(el) {
   }
   return false;
 }
+
 
 // Wrap fn so blessing and nonce checks run at invocation time (when el is available).
 function checked(fn) {
@@ -166,6 +169,8 @@ document.addEventListener("datastar-fetch", (evt) => {
     // MutationObserver callbacks are microtasks; setTimeout (macrotask)
     // fires after them, so newly patched elements are blessed before we
     // close the window.
-    setTimeout(() => (blessingEnabled = false), 0);
+    setTimeout(() => {
+      blessingEnabled = false;
+    }, 0);
   });
 });

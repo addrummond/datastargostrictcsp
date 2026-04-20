@@ -1,58 +1,32 @@
 // <nonce_check>
-// Nonce bloom filter
+// Nonce WeakMap
 //
 // Tracks per-render nonces from precompile scripts. We reject expression
-// invocations on elements whose data-ds-nonce is not in the filter.
-// This is primarily a protection against server-side injection (handling
-// the case where an attacker has injected an existing precompiled attribute),
-// but it also adds an additional layer of protection against client-side
-// injection.
+// invocations on elements whose data-ds-nonce does not match the nonce
+// associated with their nearest nonce-tagged ancestor. This is primarily a
+// protection against server-side injection (handling the case where an
+// attacker has injected an existing precompiled attribute), but it also adds
+// an additional layer of protection against client-side injection.
 //
-// Two rotating bloom filters, each m=2^14 bits (2 KB), k=9.
-// Insertions go into `cur`; after 1000 insertions `cur` and `old` swap and
-// the newly-demoted filter is cleared. Membership tests check both filters,
-// so the effective window always covers the last ~2000 nonces.
-// FP rate: ~0.04% at 1000 nonces per filter.
-const M = 1 << 14;
-let cur = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, current window
-let old = new Int32Array(M >> 5); // 512 × Int32 = 2 KB, previous window
-let insertCount = 0;
+// nonceMap keys are either document.documentElement (seeded with the initial
+// page nonce) or the root of each patch-inserted subtree (stored by the
+// MutationObserver during the blessing window). At invocation time, checked()
+// walks up the ancestor chain to find the nearest key and compares its nonce
+// against the element's data-ds-nonce.
+//
+// To make repeated checks faster, we add a redundant entry to the WeakMap for
+// the 5th ancestor the node we're walking from.
 let nonceCheckActive = false;
+let currentPatchNonce = null; // set during each patch window for the MutationObserver
+const nonceMap = new WeakMap();
 
-function bloomOp(filter, s, write) {
-  for (let i = 0; i < 9; i++) {
-    let h = i * 2654435761;
-    for (let j = 0; j < s.length; j++)
-      h = Math.imul(h ^ s.charCodeAt(j), 16777619);
-    h = (h >>> 0) & (M - 1);
-    if (write) filter[h >> 5] |= 1 << (h & 31);
-    else if (!(filter[h >> 5] & (1 << (h & 31)))) return false;
-  }
-  return true;
-}
-
-function bloomHas(s) {
-  return bloomOp(cur, s, false) || bloomOp(old, s, false);
-}
-
-function bloomAdd(nonce) {
-  if (!nonce) return;
-  if (++insertCount > 1000) {
-    old.fill(0);
-    const tmp = old;
-    old = cur;
-    cur = tmp;
-    insertCount = 1;
-  }
-  bloomOp(cur, nonce, true);
+const pageNonce = document.querySelector(
+  'meta[name="datastargostrictcsp-ds-nonce"]',
+)?.content;
+if (pageNonce) {
+  nonceMap.set(document.documentElement, pageNonce);
   nonceCheckActive = true;
 }
-
-bloomAdd(
-  document.querySelector('meta[name="datastargostrictcsp-ds-nonce"]')?.content,
-);
-
-let lastNonce = ""; // fast path: skip bloom lookup when nonce matches last valid hit
 // </nonce_check>
 
 // Blessed/cursed element registry
@@ -66,8 +40,8 @@ let lastNonce = ""; // fast path: skip bloom lookup when nonce matches last vali
 // blessed/cursed node to the blessed/cursed set after the initial walk to
 // the blessed/cursed ancestor.
 //
-// This protection is complementary to the nonce bloom filter: the nonce
-// filter is opt-in; the blessing check is always active.
+// This protection is complementary to the nonce check: the nonce check is
+// opt-in; the blessing check is always active.
 const blessed = new WeakSet();
 const cursed = new WeakSet();
 let blessingEnabled = false;
@@ -75,11 +49,18 @@ let blessingEnabled = false;
 blessed.add(document.documentElement);
 
 const mo = new MutationObserver((records) => {
-  if (blessingEnabled) return;
   for (const r of records) {
     for (const node of r.addedNodes) {
-      if (node.nodeType === 1) cursed.add(node);
+      if (node.nodeType !== 1) continue;
+      if (!blessingEnabled) {
+        cursed.add(node);
+      }
     }
+    // <nonce_check>
+    if (currentPatchNonce !== null) {
+      nonceMap.set(r.target, currentPatchNonce);
+    }
+    // </nonce_check>
   }
 });
 if (document.readyState === "loading") {
@@ -113,22 +94,35 @@ function isBlessed(el) {
   return false;
 }
 
+// <nonce_check>
+function hasValidNonce(el) {
+  let node = el;
+  let steps = 0;
+  let midpoint = null;
+  while (node) {
+    if (steps === 5) midpoint = node;
+    if (nonceMap.has(node)) {
+      const expected = nonceMap.get(node);
+      if (midpoint) nonceMap.set(midpoint, expected);
+      return (el?.dataset?.dsNonce ?? "") === expected;
+    }
+    node = node.parentElement;
+    steps++;
+  }
+  return false;
+}
+// </nonce_check>
+
 // Wrap fn so blessing and nonce checks run at invocation time (when el is available).
 function checked(fn) {
   return function (el) {
     // <nonce_check>
-    if (nonceCheckActive) {
-      const nonce = (el && el.dataset && el.dataset.dsNonce) ?? "";
-      if (nonce !== lastNonce) {
-        if (!bloomHas(nonce)) {
-          console.error(
-            "[datastarstrictcsp] nonce check failed: expression blocked on element:",
-            el,
-          );
-          return;
-        }
-        lastNonce = nonce;
-      }
+    if (nonceCheckActive && !hasValidNonce(el)) {
+      console.error(
+        "[datastarstrictcsp] nonce check failed: expression blocked on element:",
+        el,
+      );
+      return;
     }
     // </nonce_check>
     if (!isBlessed(el)) {
@@ -202,11 +196,7 @@ document.addEventListener("datastar-fetch", (evt) => {
   const argsRaw = evt.detail.argsRaw;
 
   // <nonce_check>
-  // SSE path: register nonce immediately so bloom checks pass on patched elements.
-  if (argsRaw.dsNonce) {
-    bloomAdd(argsRaw.dsNonce);
-    delete argsRaw.dsNonce;
-  }
+  let patchNonce = null;
   // </nonce_check>
 
   let urls = null;
@@ -214,13 +204,19 @@ document.addEventListener("datastar-fetch", (evt) => {
     // SSE path: precompile URLs in a data: precompileUrl field.
     urls = argsRaw.precompileUrl.split(" ");
     delete argsRaw.precompileUrl;
+    // <nonce_check>
+    if (argsRaw.dsNonce) {
+      patchNonce = argsRaw.dsNonce;
+      delete argsRaw.dsNonce;
+    }
+    // </nonce_check>
   } else if (argsRaw.elements) {
     // text/html path: one comment per URL (nonce on the first), consume all.
     urls = [];
     let rest = argsRaw.elements;
     for (let m; (m = rest.match(COMMENT_RE)) && (m[1] ?? m[2]); ) {
       // <nonce_check>
-      if (m[1]) bloomAdd(m[1]);
+      if (m[1]) patchNonce = m[1];
       // </nonce_check>
       if (m[2]) urls.push(m[2]);
       rest = rest.slice(m[0].length);
@@ -234,6 +230,10 @@ document.addEventListener("datastar-fetch", (evt) => {
   evt.stopImmediatePropagation();
 
   Promise.all(urls.map(loadScript)).then(() => {
+    // <nonce_check>
+    currentPatchNonce = patchNonce;
+    if (patchNonce !== null) nonceCheckActive = true;
+    // </nonce_check>
     blessingEnabled = true;
     document.dispatchEvent(
       new CustomEvent("datastar-fetch", {
@@ -247,6 +247,11 @@ document.addEventListener("datastar-fetch", (evt) => {
     // MutationObserver callbacks are microtasks; setTimeout (macrotask)
     // fires after them, so newly patched elements are blessed before we
     // close the window.
-    setTimeout(() => (blessingEnabled = false), 0);
+    setTimeout(() => {
+      blessingEnabled = false;
+      // <nonce_check>
+      currentPatchNonce = null;
+      // </nonce_check>
+    }, 0);
   });
 });
