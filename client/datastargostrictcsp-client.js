@@ -104,7 +104,7 @@ function hasValidNonce(el) {
     if (nonceMap.has(node)) {
       const expected = nonceMap.get(node);
       if (midpoint) nonceMap.set(midpoint, expected);
-      return (el?.dataset?.dsNonce ?? "") === expected;
+      return el?.dataset?.dsNonce === expected;
     }
     node = node.parentElement;
     steps++;
