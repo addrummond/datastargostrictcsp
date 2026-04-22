@@ -1,7 +1,7 @@
 {
   "name": "datastargostrictcsp",
   "version": "1.0.0",
-  "description": "![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go&logoColor=white) ![Datastar](https://img.shields.io/badge/Datastar-1.0.0--RC.8-blueviolet?style=flat)",
+  "description": "Datastar without unsafe-eval or unsafe-inline (Go backend)",
   "main": "datastargostrictcsp-client.js",
   "directories": {
     "example": "example"
