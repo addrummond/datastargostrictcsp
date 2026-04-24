@@ -92,7 +92,7 @@ router.Use(adapter.New(datastargostrictcsp.NonceMiddleware))
 router.Use(adapter.New(pc.Middleware))
 ```
 
-<img src="https://raw.githubusercontent.com/addrummond/datastargostrictcsp/main/.readmeassets/fiber-logo.svg" width="100" style="vertical-align:middle" alt="Fiber"> If you're using [Fiber](https://gofiber.io/), use the [adaptor package](https://docs.gofiber.io/next/middleware/adaptor/):
+<img src="https://raw.githubusercontent.com/addrummond/datastargostrictcsp/main/.readmeassets/fiber-logo.svg" width="50" style="vertical-align:middle" alt="Fiber"> If you're using [Fiber](https://gofiber.io/), use the [adaptor package](https://docs.gofiber.io/next/middleware/adaptor/):
 
 ```go
 import "github.com/gofiber/fiber/v3/middleware/adaptor"
