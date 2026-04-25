@@ -98,8 +98,9 @@ router.Use(adapter.New(pc.Middleware))
 import "github.com/gofiber/fiber/v3/middleware/adaptor"
 
 app := fiber.New()
-app.Get("/func", adaptor.HTTPHandlerFunc(myHandler))
-````
+app.Use(adaptor.HTTPMiddleware(datastargostrictcsp.NonceMiddleware))
+app.Use(adaptor.HTTPMiddleware(pc.Middleware))
+```
 
 ## Custom aliased bundles
 
