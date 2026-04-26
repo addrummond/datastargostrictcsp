@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	stdhtml "html"
 	"net/http"
 	"net/url"
 	"strings"
@@ -708,7 +709,7 @@ func scriptTags(urls []string) []byte {
 			b.WriteByte('\n')
 		}
 		b.WriteString(`<script type="module" src="`)
-		b.WriteString(u)
+		b.WriteString(stdhtml.EscapeString(u))
 		b.WriteString(`"></script>`)
 	}
 	return b.Bytes()

@@ -2,6 +2,7 @@ package datastargostrictcsp
 
 import (
 	"context"
+	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -184,7 +185,7 @@ func scriptURLFromPage(t *testing.T, p *Precompiler, body string) string {
 	}
 	i += 5
 	j := strings.Index(page[i:], `"`)
-	return page[i : i+j]
+	return stdhtml.UnescapeString(page[i : i+j])
 }
 
 func TestMiddleware_Alias_RecognisesAliasedAttributes(t *testing.T) {
