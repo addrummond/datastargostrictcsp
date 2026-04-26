@@ -2,9 +2,11 @@ package datastargostrictcsp
 
 import (
 	"context"
+	"encoding/base64"
 	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -562,5 +564,126 @@ func TestInjectIntoHead(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// buildEntriesOfSize returns n precompileEntries whose combined e= URL
+// contribution is approximately targetBytes bytes each (useful for splitting tests).
+func buildEntriesOfSize(n, bodyLen int) []precompileEntry {
+	entries := make([]precompileEntry, n)
+	for i := range entries {
+		body := strings.Repeat("x", bodyLen)
+		entries[i] = precompileEntry{funcArgs: []string{"el", "$", "__action", "evt", body}}
+	}
+	return entries
+}
+
+func TestBuildSignedURLs_SingleURL_FitsWithinLimit(t *testing.T) {
+	p := testPrecompiler(t)
+	p.MaxURLLen = 2000
+
+	entries := buildEntriesOfSize(1, 50)
+	urls, err := p.buildSignedURLs(entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(urls) != 1 {
+		t.Fatalf("expected 1 URL, got %d: %v", len(urls), urls)
+	}
+	if len(urls[0]) > p.MaxURLLen {
+		t.Errorf("URL length %d exceeds MaxURLLen %d", len(urls[0]), p.MaxURLLen)
+	}
+}
+
+func TestBuildSignedURLs_SplitsWhenLimitExceeded(t *testing.T) {
+	p := testPrecompiler(t)
+	p.MaxURLLen = 300 // small limit to force splitting
+
+	// Each entry encodes a body string long enough that two of them
+	// together would exceed 300 bytes but one fits comfortably.
+	entries := buildEntriesOfSize(4, 30)
+	urls, err := p.buildSignedURLs(entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(urls) < 2 {
+		t.Fatalf("expected multiple URLs due to splitting, got %d: %v", len(urls), urls)
+	}
+	for _, u := range urls {
+		if len(u) > p.MaxURLLen {
+			t.Errorf("URL length %d exceeds MaxURLLen %d: %s", len(u), p.MaxURLLen, u)
+		}
+	}
+}
+
+func TestBuildSignedURLs_OversizeEntryEmittedAlone(t *testing.T) {
+	p := testPrecompiler(t)
+	p.MaxURLLen = 100 // tiny limit — even one entry won't fit
+
+	entries := buildEntriesOfSize(1, 200)
+	urls, err := p.buildSignedURLs(entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// The single entry must still be emitted even though it exceeds the limit.
+	if len(urls) != 1 {
+		t.Fatalf("expected 1 URL for oversized single entry, got %d", len(urls))
+	}
+}
+
+func TestBuildSignedURLs_AllExpressionsPresent(t *testing.T) {
+	p := testPrecompiler(t)
+	p.MaxURLLen = 300
+
+	bodies := []string{"alpha", "beta", "gamma", "delta", "epsilon"}
+	entries := make([]precompileEntry, len(bodies))
+	for i, b := range bodies {
+		entries[i] = precompileEntry{funcArgs: []string{"el", "$", "__action", "evt", b}}
+	}
+
+	urls, err := p.buildSignedURLs(entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Collect all decoded e= payloads across all URLs.
+	var allPayloads []string
+	for _, u := range urls {
+		parsed, err := url.Parse(u)
+		if err != nil {
+			t.Fatalf("could not parse URL %q: %v", u, err)
+		}
+		for _, eVal := range parsed.Query()["e"] {
+			decoded, err := base64.RawURLEncoding.DecodeString(eVal)
+			if err != nil {
+				t.Fatalf("could not base64-decode e= value %q: %v", eVal, err)
+			}
+			allPayloads = append(allPayloads, string(decoded))
+		}
+	}
+
+	// Verify every body appears in the decoded payloads.
+	for _, body := range bodies {
+		found := false
+		for _, payload := range allPayloads {
+			if strings.Contains(payload, body) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expression body %q not found in any decoded e= payload", body)
+		}
+	}
+}
+
+func TestBuildSignedURLs_EmptyEntries_ReturnsNil(t *testing.T) {
+	p := testPrecompiler(t)
+	urls, err := p.buildSignedURLs(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(urls) != 0 {
+		t.Errorf("expected no URLs for empty entries, got %v", urls)
 	}
 }
