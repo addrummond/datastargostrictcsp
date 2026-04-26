@@ -476,7 +476,7 @@ func (sw *sseWriter) processEvent(event []byte) error {
 			parts = append(parts, string(after))
 		}
 	}
-	html := strings.Join(parts, "\n")
+	htmlBody := strings.Join(parts, "\n")
 
 	// Inject the nonce so the client can register it in the bloom filter before
 	// evaluating expressions on the patched elements.
@@ -485,7 +485,7 @@ func (sw *sseWriter) processEvent(event []byte) error {
 			[]byte("data: dsNonce "+sw.nonce+"\n"+elementsPrefix), 1)
 	}
 
-	if entries := scanHTML([]byte(html), sw.nonce, sw.p.Alias); len(entries) > 0 {
+	if entries := scanHTML([]byte(htmlBody), sw.nonce, sw.p.Alias); len(entries) > 0 {
 		if urls, err := sw.p.buildSignedURLs(entries); err == nil {
 			// Inject precompile URLs as a single space-separated data field.
 			// The client shim intercepts datastar-patch-elements events that
