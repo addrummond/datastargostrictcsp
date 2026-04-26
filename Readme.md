@@ -39,7 +39,7 @@ The signed URL reaches the client in one of three ways:
 |---|---|
 | Full HTML document | `<script type="module" src="$URL">` injected before `</head>` |
 | SSE (`datastar-patch-elements`) | `data: precompileUrl <url>` field injected; client library intercepts `datastar-fetch`, loads script, then re-dispatches |
-| Non-SSE HTML fragment | `<!-- precompile-url: <url> -->` prepended; client library strips comment, loads script, then re-dispatches |
+| Non-SSE HTML fragment | `<!-- precompile-url: <url> -->` prepended; client library intercepts `datastar-fetch`, strips comment and loads script, then re-dispatches |
 
 **URL length:** Signed URLs can contain many Datastar expressions. If a URL would exceed 2000 bytes, the server automatically splits it into multiple URLs. (An individual Datastar expression cannot be split across multiple URLs, so don't write ludicrously humungous expressions.)
 
