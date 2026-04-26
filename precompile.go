@@ -428,7 +428,7 @@ func (dw *detectWriter) flush() {
 	if dw.code != 0 {
 		dw.ResponseWriter.WriteHeader(dw.code)
 	}
-	dw.ResponseWriter.Write(body)
+	_, _ = dw.ResponseWriter.Write(body)
 }
 
 const (
