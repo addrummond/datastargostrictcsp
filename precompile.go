@@ -103,6 +103,11 @@ func NonceFromContext(ctx context.Context) string {
 // signURL builds a signed script URL for the given pre-encoded e values.
 // Format: <scriptPath>?e=<b64url(JSON(funcArgs))>&...&sig=<b64url(HMAC-SHA256[:12])>
 // The HMAC covers the canonical "e=...&e=..." query string.
+//
+// The HMAC-SHA256 output is truncated to 12 bytes (96 bits). This is
+// intentional: 96-bit MACs are well within accepted practice for URL signing
+// (NIST SP 800-107 allows truncation to half the hash length), and keeping
+// the signature short reduces URL length.
 func (p *Precompiler) signURL(eVals []string) (string, error) {
 	if p.Key == [32]byte{} {
 		return "", errZeroKey
