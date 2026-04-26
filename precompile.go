@@ -288,6 +288,11 @@ func Skip(next http.Handler) http.Handler {
 //   - text/html (fragment): prepends a <!-- precompile-url: ... --> comment.
 //   - anything else (JS, images, …): passed through.
 //
+// Handlers must set Content-Type explicitly before writing. Responses with no
+// Content-Type header are passed through unchanged (Go's automatic content
+// sniffing happens inside the underlying http.ResponseWriter, which the
+// middleware intercepts before sniffing can occur).
+//
 // Use it in combination with NonceMiddleware to protect against expression
 // injection from untrusted HTML.
 func (p *Precompiler) Middleware(next http.Handler) http.Handler {
@@ -348,7 +353,7 @@ func (dw *detectWriter) detect() {
 	case strings.HasPrefix(ct, "text/event-stream"):
 		dw.mode = detectSSE
 		dw.sseW = &sseWriter{ResponseWriter: dw.ResponseWriter, p: dw.p, nonce: dw.nonce}
-	case ct == "" || strings.HasPrefix(ct, "text/html"):
+	case strings.HasPrefix(ct, "text/html"):
 		dw.mode = detectHTML
 		dw.buf = bufPool.Get().(*bytes.Buffer)
 		dw.buf.Reset()

@@ -41,6 +41,7 @@ func TestMiddleware_FullPage_NoExpressions(t *testing.T) {
 	p := testPrecompiler(t)
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><p>no datastar here</p></body></html>`))
 	}))
 
@@ -57,6 +58,7 @@ func TestMiddleware_FullPage_InjectsScriptBeforeHeadClose(t *testing.T) {
 	p := testPrecompiler(t)
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><div data-text="mySignal"></div></body></html>`))
 	}))
 
@@ -83,6 +85,7 @@ func TestMiddleware_FullPage_CustomScriptPath(t *testing.T) {
 	p.ScriptPath = "/custom/precompile.js"
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><div data-text="x"></div></body></html>`))
 	}))
 
@@ -99,6 +102,7 @@ func TestMiddleware_Fragment_PrependsComment(t *testing.T) {
 	p := testPrecompiler(t)
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<div data-text="mySignal"></div>`))
 	}))
 
@@ -117,6 +121,7 @@ func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 
 	handler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nonce := NonceFromContext(r.Context())
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body>` +
 			`<div data-text="signalA" data-ds-nonce="` + nonce + `"></div>` +
 			`<div data-text="signalB"></div>` +
@@ -141,6 +146,7 @@ func TestMiddleware_WithNonce_NoMatchingElements(t *testing.T) {
 
 	handler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Element has a DS attr but no matching nonce attribute
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><div data-text="x"></div></body></html>`))
 	})))
 
@@ -153,10 +159,32 @@ func TestMiddleware_WithNonce_NoMatchingElements(t *testing.T) {
 	}
 }
 
+func TestMiddleware_NoContentType_PassesThroughUnchanged(t *testing.T) {
+	p := testPrecompiler(t)
+
+	const htmlBody = `<html><head></head><body><div data-text="x"></div></body></html>`
+	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Deliberately no Content-Type header.
+		w.Write([]byte(htmlBody))
+	}))
+
+	req := httptest.NewRequest("GET", "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if strings.Contains(rec.Body.String(), "<script") {
+		t.Errorf("response with no Content-Type should not be processed;\nbody: %s", rec.Body)
+	}
+	if rec.Body.String() != htmlBody {
+		t.Errorf("body should be unchanged;\ngot: %s\nwant: %s", rec.Body, htmlBody)
+	}
+}
+
 func TestMiddleware_ZeroKey_PassesThroughUnchanged(t *testing.T) {
 	var p Precompiler // zero key
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><div data-text="x"></div></body></html>`))
 	}))
 
@@ -174,6 +202,7 @@ func TestMiddleware_ZeroKey_PassesThroughUnchanged(t *testing.T) {
 func scriptURLFromPage(t *testing.T, p *Precompiler, body string) string {
 	t.Helper()
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body>` + body + `</body></html>`))
 	}))
 	rec := httptest.NewRecorder()
@@ -193,6 +222,7 @@ func TestMiddleware_Alias_RecognisesAliasedAttributes(t *testing.T) {
 	p.Alias = "ds"
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><div data-ds-text="mySignal"></div></body></html>`))
 	}))
 
@@ -209,6 +239,7 @@ func TestMiddleware_Alias_StandardAttributesIgnoredWhenAliasSet(t *testing.T) {
 	p.Alias = "ds"
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><div data-text="mySignal"></div></body></html>`))
 	}))
 
@@ -226,6 +257,7 @@ func TestMiddleware_Alias_UnknownPrefixNotRecognized(t *testing.T) {
 
 	// data-other-text uses a different prefix — should not be compiled.
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body><div data-other-text="someSignal"></div></body></html>`))
 	}))
 
@@ -298,6 +330,7 @@ func TestScriptHandler_WithNonce_EmitsBloomAdd(t *testing.T) {
 	var capturedNonce string
 	pageHandler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedNonce = NonceFromContext(r.Context())
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body>` +
 			`<div data-text="x" data-ds-nonce="` + capturedNonce + `"></div>` +
 			`</body></html>`))
