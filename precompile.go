@@ -420,6 +420,7 @@ func (dw *detectWriter) flush() {
 	} else if dw.nonce != "" && !looksLikeFullDocument(body) {
 		// No expressions but nonce is active: still tell the client the nonce
 		// so elements on this fragment pass the bloom filter check.
+		dw.ResponseWriter.Header().Del("Content-Length")
 		comment := "<!-- ds-nonce: " + dw.nonce + " -->\n"
 		body = append([]byte(comment), body...)
 	}
