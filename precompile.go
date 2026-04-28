@@ -667,7 +667,7 @@ func buildJS(entries []precompileEntry) []byte {
 	}
 
 	var b strings.Builder
-	b.WriteString("const p=window.__datastar_precompiled_expressions\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
+	b.WriteString("const p=window.__datastar_precompiled_expressions||(window.__datastar_precompiled_expressions=new Map())\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
 
 	// One helper per unique param signature.
 	for _, g := range groups {
@@ -737,8 +737,9 @@ func looksLikeFullDocument(body []byte) bool {
 
 // injectIntoHead inserts meta immediately before the first non-<meta> tag in
 // <head> (or before </head> if head is empty/all-meta), and inserts scripts
-// immediately before </head>. Either slice may be nil. If no </head> is found
-// but a <body> tag is present, both are injected immediately before <body>.
+// immediately before the first <script> tag in <head> (or before </head> if
+// there are none). Either slice may be nil. If no </head> is found but a
+// <body> tag is present, both are injected immediately before <body>.
 // Returns (modified body, true) on success, (original body, false) otherwise.
 func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 	// Without this heuristic check, every text/html response containing an HTML
@@ -749,8 +750,9 @@ func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 	z := html.NewTokenizer(bytes.NewReader(body))
 	pos := 0
 	inHead := false
-	metaInsertPos := -1 // before first non-<meta> tag in head; falls back to </head>
-	bodyPos := -1       // fallback injection point if no </head> found
+	metaInsertPos := -1   // before first non-<meta> tag in head; falls back to </head>
+	scriptInsertPos := -1 // before first <script> tag in head; falls back to </head>
+	bodyPos := -1         // fallback injection point if no </head> found
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
@@ -768,8 +770,13 @@ func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 					bodyPos = pos
 				}
 			default:
-				if inHead && metaInsertPos < 0 && string(name) != "meta" {
-					metaInsertPos = pos
+				if inHead {
+					if metaInsertPos < 0 && string(name) != "meta" {
+						metaInsertPos = pos
+					}
+					if scriptInsertPos < 0 && string(name) == "script" {
+						scriptInsertPos = pos
+					}
 				}
 			}
 		case html.EndTagToken:
@@ -778,7 +785,10 @@ func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 				if metaInsertPos < 0 {
 					metaInsertPos = pos // head was empty or contained only <meta> tags
 				}
-				return splice(body, meta, metaInsertPos, scripts, pos), true
+				if scriptInsertPos < 0 {
+					scriptInsertPos = pos // no <script> in head; fall back to before </head>
+				}
+				return splice(body, meta, metaInsertPos, scripts, scriptInsertPos), true
 			}
 		}
 		pos += rawLen

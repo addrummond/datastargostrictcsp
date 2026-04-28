@@ -465,10 +465,17 @@ func TestInjectIntoHead(t *testing.T) {
 		wantOK           bool
 	}{
 		{
-			name:             "meta inserted before first non-meta tag in head",
+			name:             "meta and scripts both injected before first script in head",
 			input:            `<html><head><script src="client.js"></script></head><body></body></html>`,
 			wantMetaBefore:   `<script src="client.js">`,
-			wantScriptBefore: `</head>`,
+			wantScriptBefore: `<script src="client.js">`,
+			wantOK:           true,
+		},
+		{
+			name:             "scripts injected before first script, meta before first non-meta",
+			input:            `<html><head><link rel="stylesheet" href="x.css"><script src="app.js"></script></head><body></body></html>`,
+			wantMetaBefore:   `<link rel="stylesheet"`,
+			wantScriptBefore: `<script src="app.js">`,
 			wantOK:           true,
 		},
 		{

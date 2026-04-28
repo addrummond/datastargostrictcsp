@@ -141,8 +141,10 @@ function checked(fn) {
 // Intercepts new Function(...) calls so Datastar uses precompiled functions
 // from window.__datastar_precompiled_expressions instead of eval-ing expressions at runtime.
 const _Function = Function;
-const p = new Map();
-window.__datastar_precompiled_expressions = p;
+// Preserve any entries already registered by precompile scripts that ran
+// before this module (possible when they are injected earlier in <head>).
+window.__datastar_precompiled_expressions ||= new Map();
+const p = window.__datastar_precompiled_expressions;
 
 function proxyHandler(args) {
   const fn = p.get(JSON.stringify(args));
