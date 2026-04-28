@@ -170,14 +170,15 @@ var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 // functions.
 func (p *Precompiler) ScriptHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		entries, err := p.verifyURL(r.URL.Query())
+		q := r.URL.Query()
+		entries, err := p.verifyURL(q)
 		if err != nil {
 			http.Error(w, "invalid signature", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		w.Write(buildJS(entries))
+		_, _ = w.Write(buildJS(entries, q.Get("i") == "1"))
 	})
 }
 
@@ -224,6 +225,10 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry) ([]string, erro
 			return nil, err
 		}
 		urls = append(urls, u)
+	}
+	// Mark the first URL so its script initialises the map if not already present.
+	if len(urls) > 0 {
+		urls[0] += "&i=1"
 	}
 	return urls, nil
 }
@@ -622,7 +627,7 @@ tokenLoop:
 	return results
 }
 
-func buildJS(entries []precompileEntry) []byte {
+func buildJS(entries []precompileEntry, initMap bool) []byte {
 	// Group entries by their param list (all funcArgs except the body).
 	// Each unique param signature gets one helper that handles the
 	// p.set(JSON.stringify([...params, b]), fn) boilerplate.
@@ -667,7 +672,10 @@ func buildJS(entries []precompileEntry) []byte {
 	}
 
 	var b strings.Builder
-	b.WriteString("const p=window.__datastar_precompiled_expressions??(window.__datastar_precompiled_expressions=new Map())\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
+	if initMap {
+		b.WriteString("window.__datastar_precompiled_expressions??=new Map()\n")
+	}
+	b.WriteString("const p=window.__datastar_precompiled_expressions\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
 
 	// One helper per unique param signature.
 	for _, g := range groups {

@@ -369,6 +369,37 @@ func TestScriptHandler_WrongKeyRejectsToken(t *testing.T) {
 	}
 }
 
+func TestScriptHandler_FirstURLHasInitParam(t *testing.T) {
+	p := testPrecompiler(t)
+
+	// Single URL: must carry &i=1.
+	url := scriptURLFromPage(t, p, `<div data-text="sig"></div>`)
+	if !strings.Contains(url, "&i=1") {
+		t.Errorf("first (and only) URL should carry &i=1; got: %s", url)
+	}
+
+	// Fetch with i=1: output must contain the map initialisation line.
+	rec := httptest.NewRecorder()
+	p.ScriptHandler().ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "window.__datastar_precompiled_expressions??=new Map()") {
+		t.Errorf("script with i=1 should include map init; got:\n%s", rec.Body)
+	}
+
+	// Fetch without i=1: output must NOT contain the map initialisation line.
+	noInit := strings.ReplaceAll(url, "&i=1", "")
+	rec2 := httptest.NewRecorder()
+	p.ScriptHandler().ServeHTTP(rec2, httptest.NewRequest("GET", noInit, nil))
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected 200 without i=1, got %d", rec2.Code)
+	}
+	if strings.Contains(rec2.Body.String(), "??=new Map()") {
+		t.Errorf("script without i=1 should not include map init; got:\n%s", rec2.Body)
+	}
+}
+
 func TestSSEMiddleware_NonPatchEventPassesThrough(t *testing.T) {
 	p := testPrecompiler(t)
 	const event = "event: datastar-patch-signals\ndata: signals {foo:1}\n\n"
@@ -616,9 +647,21 @@ func TestBuildSignedURLs_SplitsWhenLimitExceeded(t *testing.T) {
 	if len(urls) < 2 {
 		t.Fatalf("expected multiple URLs due to splitting, got %d: %v", len(urls), urls)
 	}
-	for _, u := range urls {
-		if len(u) > p.MaxURLLen {
-			t.Errorf("URL length %d exceeds MaxURLLen %d: %s", len(u), p.MaxURLLen, u)
+	for i, u := range urls {
+		// The &i=1 suffix is not part of the signed payload so subtract it when
+		// checking the limit for the first URL.
+		checkLen := len(u)
+		if i == 0 {
+			checkLen -= len("&i=1")
+		}
+		if checkLen > p.MaxURLLen {
+			t.Errorf("URL[%d] length %d exceeds MaxURLLen %d: %s", i, checkLen, p.MaxURLLen, u)
+		}
+		if i == 0 && !strings.HasSuffix(u, "&i=1") {
+			t.Errorf("first URL should end with &i=1; got: %s", u)
+		}
+		if i > 0 && strings.Contains(u, "&i=1") {
+			t.Errorf("non-first URL[%d] should not contain &i=1; got: %s", i, u)
 		}
 	}
 }
