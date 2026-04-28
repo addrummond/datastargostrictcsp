@@ -667,7 +667,7 @@ func buildJS(entries []precompileEntry) []byte {
 	}
 
 	var b strings.Builder
-	b.WriteString("const p=window.__datastar_precompiled_expressions||(window.__datastar_precompiled_expressions=new Map())\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
+	b.WriteString("const p=window.__datastar_precompiled_expressions??(window.__datastar_precompiled_expressions=new Map())\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
 
 	// One helper per unique param signature.
 	for _, g := range groups {
