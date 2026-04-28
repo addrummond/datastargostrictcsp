@@ -673,9 +673,11 @@ func buildJS(entries []precompileEntry, initMap bool) []byte {
 
 	var b strings.Builder
 	if initMap {
-		b.WriteString("window.__datastar_precompiled_expressions??=new Map()\n")
+		b.WriteString("const p=(window.__datastar_precompiled_expressions??=new Map())\n")
+	} else {
+		b.WriteString("const p=window.__datastar_precompiled_expressions\n")
 	}
-	b.WriteString("const p=window.__datastar_precompiled_expressions\nconst s=(x,y)=>p.set(JSON.stringify(x),y)\n")
+	b.WriteString("const s=(x,y)=>p.set(JSON.stringify(x),y)\n")
 
 	// One helper per unique param signature.
 	for _, g := range groups {

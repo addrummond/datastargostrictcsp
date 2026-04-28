@@ -81,8 +81,7 @@ function checked(fn) {
 const _Function = Function;
 // Preserve any entries already registered by precompile scripts that ran
 // before this module (possible when they are injected earlier in <head>).
-window.__datastar_precompiled_expressions ??= new Map();
-const p = window.__datastar_precompiled_expressions;
+const p = (window.__datastar_precompiled_expressions ??= new Map());
 
 function proxyHandler(args) {
   const fn = p.get(JSON.stringify(args));
