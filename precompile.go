@@ -101,14 +101,17 @@ func NonceFromContext(ctx context.Context) string {
 }
 
 // signURL builds a signed script URL for the given pre-encoded e values.
-// Format: <scriptPath>?e=<b64url(JSON(funcArgs))>&...&sig=<b64url(HMAC-SHA256[:12])>
+// Format: <scriptPath>?e=<b64url(JSON(funcArgs))>&...&sig=<b64url(HMAC-SHA256[:12])>[&i=1]
 // The HMAC covers the canonical "e=...&e=..." query string.
 //
 // The HMAC-SHA256 output is truncated to 12 bytes (96 bits). This is
 // intentional: 96-bit MACs are well within accepted practice for URL signing
 // (NIST SP 800-107 allows truncation to half the hash length), and keeping
 // the signature short reduces URL length.
-func (p *Precompiler) signURL(eVals []string) (string, error) {
+//
+// If initMap is true, &i=1 is appended; the served script will initialise
+// window.__datastar_precompiled_expressions if it does not already exist.
+func (p *Precompiler) signURL(eVals []string, initMap bool) (string, error) {
 	if p.Key == [32]byte{} {
 		return "", errZeroKey
 	}
@@ -116,7 +119,18 @@ func (p *Precompiler) signURL(eVals []string) (string, error) {
 	mac := hmac.New(sha256.New, p.Key[:])
 	mac.Write([]byte(canonical))
 	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:12])
-	return p.GetScriptPath() + "?" + canonical + "&sig=" + sig, nil
+	scriptPath := p.GetScriptPath()
+	var b strings.Builder
+	b.Grow(len(scriptPath) + 1 + len(canonical) + 5 + len(sig) + 4)
+	b.WriteString(scriptPath)
+	b.WriteByte('?')
+	b.WriteString(canonical)
+	b.WriteString("&sig=")
+	b.WriteString(sig)
+	if initMap {
+		b.WriteString("&i=1")
+	}
+	return b.String(), nil
 }
 
 // verifyURL checks the URL-level signature and returns entries for all e params.
@@ -225,7 +239,7 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry) ([]string, erro
 	for _, ev := range eVals {
 		next := append(chunk, ev)
 		if len(chunk) > 0 && len(prefix)+len(url.Values{"e": next}.Encode())+sigOverhead > maxLen {
-			u, err := p.signURL(chunk)
+			u, err := p.signURL(chunk, len(urls) == 0)
 			if err != nil {
 				return nil, err
 			}
@@ -236,15 +250,11 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry) ([]string, erro
 		}
 	}
 	if len(chunk) > 0 {
-		u, err := p.signURL(chunk)
+		u, err := p.signURL(chunk, len(urls) == 0)
 		if err != nil {
 			return nil, err
 		}
 		urls = append(urls, u)
-	}
-	// Mark the first URL so its script initialises the map if not already present.
-	if len(urls) > 0 {
-		urls[0] += "&i=1"
 	}
 	return urls, nil
 }
