@@ -165,6 +165,22 @@ func (p *Precompiler) verifyURL(q url.Values) ([]precompileEntry, error) {
 
 var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 
+// jsonMarshal is json.Marshal with HTML escaping disabled so characters like &
+// are encoded as & rather than &, keeping URLs and generated scripts compact.
+func jsonMarshal(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	b := buf.Bytes()
+	if len(b) > 0 && b[len(b)-1] == '\n' {
+		b = b[:len(b)-1] // Encode always appends a newline; strip it
+	}
+	return b, nil
+}
+
 // ScriptHandler returns an http.Handler that verifies signed expression
 // parameters and serves a cacheable JS file that registers the corresponding
 // functions.
@@ -192,7 +208,7 @@ func (p *Precompiler) buildSignedURLs(entries []precompileEntry) ([]string, erro
 	// to the URL length is known before signing.
 	eVals := make([]string, len(entries))
 	for i, entry := range entries {
-		payload, err := json.Marshal(entry.funcArgs)
+		payload, err := jsonMarshal(entry.funcArgs)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +275,7 @@ func (p *Precompiler) SignedURLs(exprs []DatastarExpression) ([]string, error) {
 		}
 		for _, isValue := range variants {
 			fa := genRxCached(e.Value, genRxOptions{ReturnsValue: isValue, ArgNames: attr.ArgNames})
-			if j, err := json.Marshal(fa); err == nil {
+			if j, err := jsonMarshal(fa); err == nil {
 				if k := string(j); !seen[k] {
 					seen[k] = true
 					entries = append(entries, precompileEntry{funcArgs: fa})
@@ -613,7 +629,7 @@ tokenLoop:
 				}
 				for _, isValue := range variants {
 					funcArgs := genRxCached(a.val, genRxOptions{ReturnsValue: isValue, ArgNames: attr.ArgNames})
-					if primaryJSON, err := json.Marshal(funcArgs); err == nil {
+					if primaryJSON, err := jsonMarshal(funcArgs); err == nil {
 						if k := string(primaryJSON); !seen[k] {
 							seen[k] = true
 							results = append(results, precompileEntry{funcArgs: funcArgs})
@@ -641,7 +657,7 @@ func buildJS(entries []precompileEntry, initMap bool) []byte {
 
 	for _, entry := range entries {
 		params := entry.funcArgs[:len(entry.funcArgs)-1]
-		paramsJSON, err := json.Marshal(params)
+		paramsJSON, err := jsonMarshal(params)
 		if err != nil {
 			continue
 		}
@@ -692,11 +708,11 @@ func buildJS(entries []precompileEntry, initMap bool) []byte {
 	for _, entry := range entries {
 		params := entry.funcArgs[:len(entry.funcArgs)-1]
 		body := entry.funcArgs[len(entry.funcArgs)-1]
-		paramsJSON, err := json.Marshal(params)
+		paramsJSON, err := jsonMarshal(params)
 		if err != nil {
 			continue
 		}
-		bodyJSON, err := json.Marshal(body)
+		bodyJSON, err := jsonMarshal(body)
 		if err != nil {
 			continue
 		}
