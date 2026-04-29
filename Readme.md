@@ -131,7 +131,7 @@ http.ListenAndServe(":8080", compress(pc.Middleware(mux)))
 
 ### Compressing SSE responses
 
-For SSE, **do not** use Datastar's `WithCompression` option. That compresses the stream before it reaches `pc.Middleware`, making it impossible for the middleware to parse.
+For SSE, **do not** use the SDK's `WithCompression` option. That compresses the stream before it reaches `pc.Middleware`, making it impossible for the middleware to parse.
 
 Instead, use a compression library such as [github.com/CAFxX/httpcompression](https://github.com/CAFxX/httpcompression) directly. Route SSE traffic through a sub-mux so the compressor wraps `pc.Middleware`:
 
