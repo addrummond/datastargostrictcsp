@@ -114,6 +114,45 @@ pc.Alias = "myalias" // matches data-myalias-on:click, data-myalias-text, etc.
 
 When an alias is set, only aliased attributes are recognized; standard `data-*` attributes are ignored.
 
+## Using compression
+
+### Non-SSE responses
+
+For regular HTML responses, compression works without any special setup as long as the compression middleware wraps `pc.Middleware` on the outside:
+
+```go
+compress, _ := httpcompression.DefaultAdapter()
+http.ListenAndServe(":8080", compress(pc.Middleware(mux)))
+```
+
+`pc.Middleware` buffers the raw HTML, injects script tags, and then passes the result to the compressor.
+
+ℹ️ The middleware automatically skips any response that has a `Content-Encoding` header set. Thus, it's only a problem for the middleware to wrap a handler that returns a compressed response if the response needs to be scanned for Datastar expressions.
+
+### SSE responses
+
+For SSE, **do not** use Datastar's `WithCompression` option. That compresses the stream before it reaches `pc.Middleware`, making it impossible for the middleware to parse.
+
+Instead, use a compression library such as [github.com/CAFxX/httpcompression](https://github.com/CAFxX/httpcompression) directly. Route SSE traffic through a sub-mux so the compressor wraps `pc.Middleware`:
+
+```go
+rootMux := http.NewServeMux()
+// ... register page and asset handlers on rootMux ...
+
+sseMux := http.NewServeMux()
+sseMux.HandleFunc("GET /events", handleEvents)
+
+compress, _ := httpcompression.DefaultAdapter()
+
+mux := http.NewServeMux()
+mux.Handle("/",     pc.Middleware(rootMux))
+mux.Handle("/sse/", compress(pc.Middleware(http.StripPrefix("/sse", sseMux))))
+
+http.ListenAndServe(":8080", mux)
+```
+
+The ordering matters: `compress(pc.Middleware(...))` means the middleware sees raw SSE events, injects the precompile URL fields, and then the compressor takes the result.
+
 ## Example app
 
 The `example/` directory contains a simple Datastar app exercising various framework features.
