@@ -391,6 +391,10 @@ func (dw *detectWriter) detect() {
 		return
 	}
 	ct := dw.ResponseWriter.Header().Get("Content-Type")
+	if dw.ResponseWriter.Header().Get("Content-Encoding") != "" {
+		dw.mode = detectPassthrough
+		return
+	}
 	switch {
 	case strings.HasPrefix(ct, "text/event-stream"):
 		dw.mode = detectSSE

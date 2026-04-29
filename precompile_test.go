@@ -182,6 +182,28 @@ func TestMiddleware_NoContentType_PassesThroughUnchanged(t *testing.T) {
 	}
 }
 
+func TestMiddleware_ContentEncoding_PassesThroughUnchanged(t *testing.T) {
+	p := testPrecompiler(t)
+
+	const htmlBody = `<html><head></head><body><div data-text="x"></div></body></html>`
+	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Write([]byte(htmlBody))
+	}))
+
+	req := httptest.NewRequest("GET", "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if strings.Contains(rec.Body.String(), "<script") {
+		t.Errorf("compressed response should not be processed;\nbody: %s", rec.Body)
+	}
+	if rec.Body.String() != htmlBody {
+		t.Errorf("body should be unchanged;\ngot: %s\nwant: %s", rec.Body, htmlBody)
+	}
+}
+
 func TestMiddleware_ZeroKey_PassesThroughUnchanged(t *testing.T) {
 	var p Precompiler // zero key
 
