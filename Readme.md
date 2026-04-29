@@ -116,7 +116,7 @@ When an alias is set, only aliased attributes are recognized; standard `data-*` 
 
 ## Using compression
 
-### Non-SSE responses
+### Compressing non-SSE responses
 
 For regular HTML responses, compression works without any special setup as long as the compression middleware wraps `pc.Middleware` on the outside:
 
@@ -129,7 +129,7 @@ http.ListenAndServe(":8080", compress(pc.Middleware(mux)))
 
 ℹ️ The middleware automatically skips any response that has a `Content-Encoding` header set. Thus, it's only a problem for the middleware to wrap a handler that returns a compressed response if the response needs to be scanned for Datastar expressions.
 
-### SSE responses
+### Compressing SSE responses
 
 For SSE, **do not** use Datastar's `WithCompression` option. That compresses the stream before it reaches `pc.Middleware`, making it impossible for the middleware to parse.
 
