@@ -309,7 +309,10 @@ type skipKey struct{}
 // already passed through automatically and do not need Skip.
 func Skip(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), skipKey{}, true)))
+		if sp, ok := r.Context().Value(skipKey{}).(*bool); ok {
+			*sp = true
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -333,12 +336,10 @@ func Skip(next http.Handler) http.Handler {
 // injection from untrusted HTML.
 func (p *Precompiler) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Context().Value(skipKey{}) != nil {
-			next.ServeHTTP(w, r)
-			return
-		}
 		nonce := NonceFromContext(r.Context())
-		dw := &detectWriter{ResponseWriter: w, p: p, nonce: nonce}
+		skip := false
+		r = r.WithContext(context.WithValue(r.Context(), skipKey{}, &skip))
+		dw := &detectWriter{ResponseWriter: w, p: p, nonce: nonce, skip: &skip}
 		next.ServeHTTP(dw, r)
 		dw.flush()
 	})
@@ -363,6 +364,7 @@ type detectWriter struct {
 	http.ResponseWriter
 	p        *Precompiler
 	nonce    string
+	skip     *bool
 	detected bool
 	mode     detectMode
 	buf      *bytes.Buffer // HTML mode: accumulates body
@@ -384,6 +386,10 @@ func (dw *detectWriter) detect() {
 		return
 	}
 	dw.detected = true
+	if dw.skip != nil && *dw.skip {
+		dw.mode = detectPassthrough
+		return
+	}
 	ct := dw.ResponseWriter.Header().Get("Content-Type")
 	switch {
 	case strings.HasPrefix(ct, "text/event-stream"):
@@ -427,6 +433,7 @@ func (dw *detectWriter) Unwrap() http.ResponseWriter {
 	}
 	return dw.ResponseWriter
 }
+
 
 func (dw *detectWriter) flush() {
 	if dw.mode != detectHTML {

@@ -737,3 +737,30 @@ func TestBuildSignedURLs_EmptyEntries_ReturnsNil(t *testing.T) {
 		t.Errorf("expected no URLs for empty entries, got %v", urls)
 	}
 }
+
+func TestSkip_PreventsMidllewareBuffering(t *testing.T) {
+	p := testPrecompiler(t)
+
+	// A handler with Datastar expressions wrapped in Skip.
+	const htmlBody = `<html><head></head><body><div data-text="mySignal"></div></body></html>`
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(htmlBody))
+	})
+
+	// Simulate the real-world layout: Middleware wraps the mux, Skip wraps the inner handler.
+	mux := http.NewServeMux()
+	mux.Handle("GET /page", Skip(inner))
+	handler := p.Middleware(mux)
+
+	req := httptest.NewRequest("GET", "/page", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if strings.Contains(rec.Body.String(), "<script") {
+		t.Errorf("Skip should prevent script injection; body:\n%s", rec.Body)
+	}
+	if rec.Body.String() != htmlBody {
+		t.Errorf("body should be unchanged;\ngot:  %s\nwant: %s", rec.Body, htmlBody)
+	}
+}
