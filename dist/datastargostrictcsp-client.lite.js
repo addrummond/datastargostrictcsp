@@ -3,27 +3,26 @@
 //
 // document.documentElement is the single blessed seed — all initial DOM nodes
 // inherit blessing by walking up to it. When the MutationObserver fires, the
-// root of each inserted subtree is added to `cursed` if it is not inserted
+// root of each inserted subtree is marked as cursed if it is not inserted
 // via a legitimate Datastar patching operation. The isBlessed function walks
 // up the ancestor chain, looking for either a blessed or a cursed ancestor.
 // To make repeated checks faster, we add the 5th ancestor of a
-// blessed/cursed node to the blessed/cursed set after the initial walk to
-// the blessed/cursed ancestor.
+// blessed/cursed node to the registry after the initial walk to the
+// blessed/cursed ancestor.
 //
 // This protection is complementary to the nonce check: the nonce check is
 // opt-in; the blessing check is always active.
-const blessed = new WeakSet();
-const cursed = new WeakSet();
+const blessing = new WeakMap();
 let blessingEnabled = false;
 
-blessed.add(document.documentElement);
+blessing.set(document.documentElement, true);
 
 const mo = new MutationObserver((records) => {
   for (const r of records) {
     for (const node of r.addedNodes) {
       if (node.nodeType !== 1) continue;
       if (!blessingEnabled) {
-        cursed.add(node);
+        blessing.set(node, false);
       }
     }
   }
@@ -42,16 +41,13 @@ function isBlessed(el) {
   let midpoint = null;
   while (node && node.nodeType === 1) {
     if (steps === 5) midpoint = node;
-    if (cursed.has(node)) {
-      if (midpoint) cursed.add(midpoint);
-      return false;
-    }
-    if (blessed.has(node)) {
+    if (blessing.has(node)) {
+      const value = blessing.get(node);
       // Two situations to think about here:
       //   (i)  A cursed node later gets added *within* midpoint. In that case, the walk from that node will reach the cursed node first.
       //   (ii) A cursed node later gets added *above* midpoint. In that case, midpoint will have been replaced with a new subtree, so won't be visited on the walk.
-      if (midpoint) blessed.add(midpoint);
-      return true;
+      if (midpoint) blessing.set(midpoint, value);
+      return value;
     }
     node = node.parentElement;
     steps++;
@@ -113,11 +109,7 @@ function loadScript(url) {
     const s = document.createElement("script");
     s.src = url;
     s.type = "module";
-    s.onload = () => {
-      s.remove();
-      resolve();
-    };
-    s.onerror = () => {
+    s.onload = s.onerror = () => {
       s.remove();
       resolve();
     }; // fail open: patch proceeds even if script 404s
@@ -160,11 +152,7 @@ document.addEventListener("datastar-fetch", (evt) => {
     blessingEnabled = true;
     document.dispatchEvent(
       new CustomEvent("datastar-fetch", {
-        detail: {
-          type: "datastar-patch-elements",
-          el: evt.detail.el,
-          argsRaw: argsRaw,
-        },
+        detail: evt.detail,
       }),
     );
     // MutationObserver callbacks are microtasks; setTimeout (macrotask)
