@@ -95,12 +95,20 @@ var (
 )
 
 func signalToBracket(name string) string {
-	parts := strings.Split(name, ".")
-	result := "$"
-	for _, part := range parts {
-		result += "['" + part + "']"
+	var b strings.Builder
+	b.Grow(len(name) + strings.Count(name, ".")*3 + 5)
+	b.WriteByte('$')
+	for {
+		part, rest, found := strings.Cut(name, ".")
+		b.WriteString("['")
+		b.WriteString(part)
+		b.WriteString("']")
+		if !found {
+			break
+		}
+		name = rest
 	}
-	return result
+	return b.String()
 }
 
 type genRxOptions struct {
@@ -127,14 +135,19 @@ func genRx(value string, opts genRxOptions) []string {
 		expr = strings.TrimSpace(value)
 	}
 
-	escaped := make(map[string]string)
-	counter := 0
-	for _, match := range escapeRe.FindAllStringSubmatch(expr, -1) {
-		k := match[1]
-		v := fmt.Sprintf("__escaped%d", counter)
-		counter++
-		escaped[v] = k
-		expr = strings.Replace(expr, dsp+k+dss, v, 1)
+	var escaped map[string]string
+	if strings.Contains(expr, dsp) {
+		counter := 0
+		for _, match := range escapeRe.FindAllStringSubmatch(expr, -1) {
+			k := match[1]
+			v := fmt.Sprintf("__escaped%d", counter)
+			counter++
+			if escaped == nil {
+				escaped = make(map[string]string)
+			}
+			escaped[v] = k
+			expr = strings.Replace(expr, dsp+k+dss, v, 1)
+		}
 	}
 
 	var replacer func(m []string) string
@@ -160,8 +173,12 @@ func genRx(value string, opts genRxOptions) []string {
 		return m[0]
 	}
 
-	expr = replaceAllSubmatchFunc(signalRe, expr, replacer)
-	expr = actionRe.ReplaceAllString(expr, `__action("$1",evt,`)
+	if strings.IndexByte(expr, '$') >= 0 {
+		expr = replaceAllSubmatchFunc(signalRe, expr, replacer)
+	}
+	if strings.IndexByte(expr, '@') >= 0 {
+		expr = actionRe.ReplaceAllString(expr, `__action("$1",evt,`)
+	}
 
 	for k, v := range escaped {
 		expr = strings.Replace(expr, k, v, 1)
@@ -181,6 +198,7 @@ func replaceAllSubmatchFunc(re *regexp.Regexp, src string, repl func([]string) s
 		return src
 	}
 	var b strings.Builder
+	b.Grow(len(src))
 	pos := 0
 	for _, idx := range indices {
 		b.WriteString(src[pos:idx[0]])
