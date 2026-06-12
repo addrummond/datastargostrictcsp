@@ -1,7 +1,7 @@
 # datastar-go-strict-csp
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go&logoColor=white)
-![Datastar](https://img.shields.io/badge/Datastar-1.0.1-blueviolet?style=flat)
+![Datastar](https://img.shields.io/badge/Datastar-1.0.2-blueviolet?style=flat)
 [![Go Reference](https://pkg.go.dev/badge/github.com/addrummond/datastargostrictcsp.svg)](https://pkg.go.dev/github.com/addrummond/datastargostrictcsp)
 
 A Go package that makes [Datastar](https://data-star.dev/) compatible with a strict [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).

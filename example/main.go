@@ -86,10 +86,10 @@ var tmpl = func() *template.Template {
 // ── middleware ─────────────────────────────────────────────────────────────────
 
 var csp = "default-src 'self'; " +
-	"script-src 'self' https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js " +
+	"script-src 'self' https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js " +
 	"'sha256-" + airReloadScriptHash + "'; " +
 	"style-src 'self' 'unsafe-inline'; " +
-	"connect-src 'self' https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js.map; " +
+	"connect-src 'self' https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js.map; " +
 	"img-src 'self' data:;"
 
 func cspMiddleware(next http.Handler) http.Handler {
