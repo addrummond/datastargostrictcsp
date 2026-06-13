@@ -19,27 +19,33 @@ blessing.set(document.documentElement, true);
 
 const mo = new MutationObserver((records) => {
   for (const r of records) {
-    for (const node of r.addedNodes) {
-      if (node.nodeType !== 1) continue;
-      if (!blessingEnabled) {
-        blessing.set(node, false);
+    if (r.type === "childList") {
+      for (const node of r.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        if (!blessingEnabled) {
+          blessing.set(node, false);
+        }
       }
     }
   }
 });
+const observeOptions = {
+  childList: true,
+  subtree: true,
+};
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () =>
-    mo.observe(document.documentElement, { childList: true, subtree: true }),
+    mo.observe(document.documentElement, observeOptions),
   );
 } else {
-  mo.observe(document.documentElement, { childList: true, subtree: true });
+  mo.observe(document.documentElement, observeOptions);
 }
 
 function isBlessed(el) {
   let node = el;
   let steps = 0;
   let midpoint = null;
-  while (node && node.nodeType === 1) {
+  while (node && node.nodeType === Node.ELEMENT_NODE) {
     if (steps === 5) midpoint = node;
     if (blessing.has(node)) {
       const value = blessing.get(node);

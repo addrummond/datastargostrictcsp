@@ -9,10 +9,10 @@
 // an additional layer of protection against client-side injection.
 //
 // nonceMap keys are either document.documentElement (seeded with the initial
-// page nonce) or the root of each patch-inserted subtree (stored by the
-// MutationObserver during the blessing window). At invocation time, checked()
-// walks up the ancestor chain to find the nearest key and compares its nonce
-// against the element's data-ds-nonce.
+// page nonce), the root of each patch-inserted subtree, or a patch-morphed
+// element whose data-ds-nonce changes. At invocation time, checked() walks up
+// the ancestor chain to find the nearest key and compares its nonce against
+// the element's data-ds-nonce.
 //
 // To make repeated checks faster, we add a redundant entry to the WeakMap for
 // the 5th ancestor the node we're walking from.
@@ -49,32 +49,52 @@ blessing.set(document.documentElement, true);
 
 const mo = new MutationObserver((records) => {
   for (const r of records) {
-    for (const node of r.addedNodes) {
-      if (node.nodeType !== 1) continue;
-      if (!blessingEnabled) {
-        blessing.set(node, false);
+    if (r.type === "childList") {
+      for (const node of r.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        if (!blessingEnabled) {
+          blessing.set(node, false);
+        }
+        // <nonce_check>
+        if (currentPatchNonce !== null) {
+          nonceMap.set(node, currentPatchNonce);
+        }
+        // </nonce_check>
       }
     }
     // <nonce_check>
-    if (currentPatchNonce !== null) {
+    if (
+      currentPatchNonce !== null &&
+      r.type === "attributes" &&
+      r.attributeName === "data-ds-nonce" &&
+      r.target.nodeType === Node.ELEMENT_NODE
+    ) {
       nonceMap.set(r.target, currentPatchNonce);
     }
     // </nonce_check>
   }
 });
+const observeOptions = {
+  childList: true,
+  subtree: true,
+  // <nonce_check>
+  attributes: true,
+  attributeFilter: ["data-ds-nonce"],
+  // </nonce_check>
+};
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () =>
-    mo.observe(document.documentElement, { childList: true, subtree: true }),
+    mo.observe(document.documentElement, observeOptions),
   );
 } else {
-  mo.observe(document.documentElement, { childList: true, subtree: true });
+  mo.observe(document.documentElement, observeOptions);
 }
 
 function isBlessed(el) {
   let node = el;
   let steps = 0;
   let midpoint = null;
-  while (node && node.nodeType === 1) {
+  while (node && node.nodeType === Node.ELEMENT_NODE) {
     if (steps === 5) midpoint = node;
     if (blessing.has(node)) {
       const value = blessing.get(node);
