@@ -49,7 +49,7 @@ The signed URL reaches the client in one of three ways:
 
 **2.** Add the following **before** the Datastar script tag:
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@0.12.9/dist/datastargostrictcsp-client.lite.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@0.12.10/dist/datastargostrictcsp-client.lite.min.js"></script>
 ```
 
 **3.** Generate a persistent 32-byte signing key (or in dev, generate a random key on start up).
