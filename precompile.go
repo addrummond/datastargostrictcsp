@@ -50,12 +50,12 @@ import (
 // tags (or, for SSE, multiple space-separated URLs in the data: url line).
 // Defaults to 2000 if zero.
 type Precompiler struct {
-	Key        [32]byte
-	OldKeys    [][32]byte
+	Key     [32]byte
+	OldKeys [][32]byte
 	// ScriptPath overrides the default script path ("/ds-precompile.js").
 	// Use GetScriptPath() to get the effective path.
 	ScriptPath string
-	MaxURLLen        int
+	MaxURLLen  int
 	// Alias is the Datastar bundle alias, if using a custom aliased bundle.
 	// When set, attributes of the form data-{Alias}-{attr} are recognized.
 	Alias string
@@ -437,7 +437,6 @@ func (dw *detectWriter) Unwrap() http.ResponseWriter {
 	}
 	return dw.ResponseWriter
 }
-
 
 func (dw *detectWriter) flush() {
 	if dw.mode != detectHTML {
