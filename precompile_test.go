@@ -26,6 +26,17 @@ func TestNonceFromContext_EmptyByDefault(t *testing.T) {
 	}
 }
 
+func TestGenerateNonce_Uses128Bits(t *testing.T) {
+	nonce := generateNonce()
+	decoded, err := base64.RawURLEncoding.DecodeString(nonce)
+	if err != nil {
+		t.Fatalf("nonce is not raw base64url: %v", err)
+	}
+	if len(decoded) != 16 {
+		t.Fatalf("decoded nonce length = %d bytes, want 16", len(decoded))
+	}
+}
+
 func TestMiddlewareWithNonce_SetsNonceInContext(t *testing.T) {
 	p := testPrecompiler(t)
 	var got string

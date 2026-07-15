@@ -80,7 +80,7 @@ func (p *Precompiler) maxURLLen() int {
 var errZeroKey = errors.New("datastargostrictcsp: Key must not be zero")
 
 func generateNonce() string {
-	var b [8]byte
+	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		panic(err)
 	}
