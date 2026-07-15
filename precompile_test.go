@@ -172,6 +172,30 @@ func TestMiddleware_WithNonce_NoMatchingElements(t *testing.T) {
 	}
 }
 
+func TestMiddleware_FragmentWithStolenPageNonce_DoesNotPrecompile(t *testing.T) {
+	p := testPrecompiler(t)
+	const pageNonce = "old-page-nonce"
+	const responseNonce = "current-response-nonce"
+
+	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<div data-text="stolenSignal" data-ds-nonce="` + pageNonce + `"></div>`))
+	}))
+
+	req := httptest.NewRequest("GET", "/fragment", nil)
+	req = req.WithContext(contextWithNonce(req.Context(), responseNonce))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if strings.Contains(body, "precompile-url") {
+		t.Fatalf("stolen page nonce should not produce precompile URL; body:\n%s", body)
+	}
+	if !strings.HasPrefix(body, "<!-- ds-nonce: "+responseNonce+" -->\n") {
+		t.Fatalf("fragment should advertise the current response nonce; body:\n%s", body)
+	}
+}
+
 func TestMiddleware_NoContentType_PassesThroughUnchanged(t *testing.T) {
 	p := testPrecompiler(t)
 
@@ -470,6 +494,34 @@ func TestSSEMiddleware_PatchElementsInjectsPrecompileUrl(t *testing.T) {
 	}
 	if !strings.Contains(got, "data: elements") {
 		t.Errorf("original elements field should still be present\ngot: %q", got)
+	}
+}
+
+func TestSSEMiddleware_PatchElementsWithStolenPageNonce_DoesNotPrecompile(t *testing.T) {
+	p := testPrecompiler(t)
+	const pageNonce = "old-page-nonce"
+	const responseNonce = "current-response-nonce"
+	event := `event: datastar-patch-elements
+data: elements <div data-text="stolenSignal" data-ds-nonce="` + pageNonce + `"></div>
+
+`
+
+	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Write([]byte(event))
+	}))
+
+	req := httptest.NewRequest("POST", "/sse", nil)
+	req = req.WithContext(contextWithNonce(req.Context(), responseNonce))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	got := rec.Body.String()
+	if strings.Contains(got, "data: precompileUrl") {
+		t.Fatalf("stolen page nonce should not produce precompile URL; event:\n%s", got)
+	}
+	if !strings.Contains(got, "data: dsNonce "+responseNonce+"\n") {
+		t.Fatalf("SSE patch should advertise the current response nonce; event:\n%s", got)
 	}
 }
 
