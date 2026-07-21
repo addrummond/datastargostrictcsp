@@ -206,7 +206,7 @@ To close the server-side Datastar-attribute injection gap, we need to know that 
 
 To do this, we can create a one-off random value (a 'nonce') and add it alongside the other Datastar attributes as `nonce="$VAL"`. The middleware precompiles only those Datastar expressions accompanied by the correct nonce. Meanwhile, the client intercepts Datastar's DOM patching and also checks the nonce, ensuring that even existing precompiled expressions can't be injected server-side (and providing another layer of protection against client-side injection).
 
-The `nonce` attribute gets special treatment from browsers: on pages with a header-delivered CSP, the value is moved out of the DOM once the element is inserted (readable only via the `el.nonce` IDL property), so CSS attribute-selector tricks can't exfiltrate it. If you'd rather use an ordinary attribute (say, to avoid confusion with your CSP script nonce), set `Precompiler.NonceAttr` (e.g. to `"data-ds-nonce"`). The middleware tells the client which attribute to check, so no client-side configuration is needed.
+The `nonce` attribute gets special treatment from browsers: on pages with a header-delivered CSP, the value is moved out of the DOM once the element is inserted (readable only via the `el.nonce` IDL property), so CSS attribute-selector tricks can't exfiltrate it. If you'd rather use an ordinary attribute, set `Precompiler.NonceAttr` (e.g. to `"data-ds-nonce"`). The middleware tells the client which attribute to check, so no client-side configuration is needed.
 
 Treat nonce-bearing HTML as request-specific output: cache the signed precompile scripts if you like, but do not mark nonce-stamped HTML fragments or pages as `public`/CDN-cacheable unless your cache key is genuinely per request.
 
