@@ -2,7 +2,7 @@
 // Nonce WeakMap
 //
 // Tracks per-render nonces from precompile scripts. We reject expression
-// invocations on elements whose data-ds-nonce does not match the nonce
+// invocations on elements whose nonce attribute does not match the nonce
 // associated with their nearest nonce-tagged ancestor. This is primarily a
 // protection against server-side injection (handling the case where an
 // attacker has injected an existing precompiled attribute), but it also adds
@@ -10,9 +10,9 @@
 //
 // nonceMap keys are either document.documentElement (seeded with the initial
 // page nonce), the root of each patch-inserted subtree, or a patch-morphed
-// element whose data-ds-nonce changes. At invocation time, checked() walks up
-// the ancestor chain to find the nearest key and compares its nonce against
-// the element's data-ds-nonce.
+// element whose nonce attribute changes. At invocation time, checked() walks
+// up the ancestor chain to find the nearest key and compares its nonce
+// against the element's nonce attribute.
 //
 // To make repeated checks faster, we add a redundant entry to the WeakMap for
 // the 5th ancestor the node we're walking from.
@@ -24,11 +24,22 @@ const nonceMap = new WeakMap();
 // the DOM, so CSS attribute-selector exfiltration can't read it. serverTiming
 // is only populated in secure contexts (HTTPS or localhost); elsewhere the
 // nonce check stays inactive.
-const pageNonce = performance
-  .getEntriesByType("navigation")[0]
-  ?.serverTiming?.find(
-    (t) => t.name === "datastargostrictcsp-ds-nonce",
-  )?.description;
+const navServerTiming =
+  performance.getEntriesByType("navigation")[0]?.serverTiming;
+const pageNonce = navServerTiming?.find(
+  (t) => t.name === "datastargostrictcsp-ds-nonce",
+)?.description;
+// The middleware advertises which attribute carries per-element nonces
+// (Precompiler.NonceAttr on the Go side). The default, 'nonce', is hidden by
+// the browser once the element is connected (given a header-delivered CSP),
+// so it must be read via the el.nonce IDL property rather than getAttribute.
+const nonceAttrName =
+  navServerTiming?.find((t) => t.name === "datastargostrictcsp-nonce-attr")
+    ?.description || "nonce";
+const readElementNonce =
+  nonceAttrName === "nonce"
+    ? (el) => el.nonce
+    : (el) => el.getAttribute(nonceAttrName);
 if (pageNonce) {
   nonceMap.set(document.documentElement, pageNonce);
   nonceCheckActive = true;
@@ -72,7 +83,7 @@ const mo = new MutationObserver((records) => {
     if (
       currentPatchNonce !== null &&
       r.type === "attributes" &&
-      r.attributeName === "data-ds-nonce" &&
+      r.attributeName === nonceAttrName &&
       r.target.nodeType === Node.ELEMENT_NODE
     ) {
       nonceMap.set(r.target, currentPatchNonce);
@@ -85,7 +96,7 @@ const observeOptions = {
   subtree: true,
   // <nonce_check>
   attributes: true,
-  attributeFilter: ["data-ds-nonce"],
+  attributeFilter: [nonceAttrName],
   // </nonce_check>
 };
 if (document.readyState === "loading") {
@@ -126,7 +137,7 @@ function hasValidNonce(el) {
     if (nonceMap.has(node)) {
       const expected = nonceMap.get(node);
       if (midpoint) nonceMap.set(midpoint, expected);
-      return el?.dataset?.dsNonce === expected;
+      return readElementNonce(el) === expected;
     }
     node = node.parentElement;
     steps++;

@@ -4,10 +4,10 @@
 {{- range .Todos}}
 <div class="todo-item{{if .Completed}} done{{end}}" id="todo-{{.ID}}">
   <input type="checkbox"{{if .Completed}} checked{{end}}
-         data-ds-nonce="{{$.Nonce}}"
+         nonce="{{$.Nonce}}"
          data-on:change="@put('/api/todos/{{.ID}}')">
   <span class="todo-text">{{.Text}}</span>
-  <button class="del-btn" data-ds-nonce="{{$.Nonce}}" data-on:click="@delete('/api/todos/{{.ID}}')">&#215;</button>
+  <button class="del-btn" nonce="{{$.Nonce}}" data-on:click="@delete('/api/todos/{{.ID}}')">&#215;</button>
 </div>
 {{- end}}
 {{- else}}

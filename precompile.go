@@ -59,6 +59,14 @@ type Precompiler struct {
 	// Alias is the Datastar bundle alias, if using a custom aliased bundle.
 	// When set, attributes of the form data-{Alias}-{attr} are recognized.
 	Alias string
+	// NonceAttr is the attribute that carries the per-request nonce on
+	// expression-bearing elements. Defaults to "nonce", which browsers hide
+	// from the DOM after insertion (when the page has a header-delivered CSP),
+	// keeping it out of reach of CSS attribute-selector exfiltration. Set it
+	// to an ordinary attribute (e.g. "data-ds-nonce") to opt out of that
+	// special browser handling. The middleware advertises the effective value
+	// to the client via the Server-Timing header.
+	NonceAttr string
 }
 
 // GetScriptPath returns the effective script path: ScriptPath if set,
@@ -68,6 +76,13 @@ func (p *Precompiler) GetScriptPath() string {
 		return p.ScriptPath
 	}
 	return "/ds-precompile.js"
+}
+
+func (p *Precompiler) nonceAttr() string {
+	if p.NonceAttr != "" {
+		return p.NonceAttr
+	}
+	return "nonce"
 }
 
 func (p *Precompiler) maxURLLen() int {
@@ -449,13 +464,13 @@ func (dw *detectWriter) flush() {
 	}()
 
 	body := dw.buf.Bytes()
-	entries := scanHTML(body, dw.nonce, dw.p.Alias)
+	entries := scanHTML(body, dw.nonce, dw.p.nonceAttr(), dw.p.Alias)
 	if len(entries) > 0 {
 		if urls, err := dw.p.buildSignedURLs(entries); err == nil {
 			dw.ResponseWriter.Header().Del("Content-Length")
 			if modified, ok := injectIntoHead(body, scriptTags(urls)); ok {
 				if dw.nonce != "" {
-					dw.ResponseWriter.Header().Add("Server-Timing", serverTimingNonce(dw.nonce))
+					dw.ResponseWriter.Header().Add("Server-Timing", serverTimingNonce(dw.nonce, dw.p.nonceAttr()))
 				}
 				body = modified
 			} else {
@@ -540,7 +555,7 @@ func (sw *sseWriter) processEvent(event []byte) error {
 			[]byte("data: dsNonce "+sw.nonce+"\n"+elementsPrefix), 1)
 	}
 
-	if entries := scanHTML([]byte(htmlBody), sw.nonce, sw.p.Alias); len(entries) > 0 {
+	if entries := scanHTML([]byte(htmlBody), sw.nonce, sw.p.nonceAttr(), sw.p.Alias); len(entries) > 0 {
 		if urls, err := sw.p.buildSignedURLs(entries); err == nil {
 			// Inject precompile URLs as a single space-separated data field.
 			// The client shim intercepts datastar-patch-elements events that
@@ -562,7 +577,7 @@ type precompileEntry struct {
 	funcArgs []string
 }
 
-func scanHTML(body []byte, nonce, alias string) []precompileEntry {
+func scanHTML(body []byte, nonce, nonceAttr, alias string) []precompileEntry {
 	seen := map[string]bool{}
 	var results []precompileEntry
 
@@ -615,13 +630,13 @@ tokenLoop:
 			}
 		}
 
-		// When a nonce is active, only process elements that carry the matching
-		// data-ds-nonce attribute. This prevents expressions injected via
-		// untrusted HTML from being included in the signed precompile URL.
+		// When a nonce is active, only process elements whose nonce attribute
+		// (Precompiler.NonceAttr) matches. This prevents expressions injected
+		// via untrusted HTML from being included in the signed precompile URL.
 		if nonce != "" {
 			var hasNonce bool
 			for _, a := range attrs {
-				if a.key == "data-ds-nonce" && a.val == nonce {
+				if a.key == nonceAttr && a.val == nonce {
 					hasNonce = true
 					break
 				}
@@ -753,15 +768,16 @@ func buildJS(entries []precompileEntry, initMap bool) []byte {
 	return []byte(b.String())
 }
 
-// serverTimingNonce renders the Server-Timing metric that carries the page
-// nonce to the client. The client reads it same-origin via
-// PerformanceNavigationTiming.serverTiming, which keeps the nonce out of the
-// DOM (a meta tag's content attribute would be exfiltratable via CSS attribute
-// selectors). serverTiming is only populated in secure contexts (HTTPS or
-// localhost); on plain HTTP the client never sees the nonce and its nonce
-// checks stay inactive.
-func serverTimingNonce(nonce string) string {
-	return `datastargostrictcsp-ds-nonce;desc="` + nonce + `"`
+// serverTimingNonce renders the Server-Timing metrics that carry the page
+// nonce and the nonce attribute name to the client. The client reads them
+// same-origin via PerformanceNavigationTiming.serverTiming, which keeps the
+// nonce out of the DOM (a meta tag's content attribute would be exfiltratable
+// via CSS attribute selectors). serverTiming is only populated in secure
+// contexts (HTTPS or localhost); on plain HTTP the client never sees the
+// nonce and its nonce checks stay inactive.
+func serverTimingNonce(nonce, nonceAttr string) string {
+	return `datastargostrictcsp-ds-nonce;desc="` + nonce +
+		`", datastargostrictcsp-nonce-attr;desc="` + nonceAttr + `"`
 }
 
 // scriptTags renders one <script type="module" src="..."> tag per URL.

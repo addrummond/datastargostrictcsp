@@ -136,7 +136,7 @@ func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 		nonce := NonceFromContext(r.Context())
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body>` +
-			`<div data-text="signalA" data-ds-nonce="` + nonce + `"></div>` +
+			`<div data-text="signalA" nonce="` + nonce + `"></div>` +
 			`<div data-text="signalB"></div>` +
 			`</body></html>`))
 	})))
@@ -149,11 +149,60 @@ func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 	if !strings.Contains(body, "<script") {
 		t.Fatalf("expected <script> for matching nonce element; body:\n%s", body)
 	}
-	if st := rec.Header().Get("Server-Timing"); !strings.Contains(st, `datastargostrictcsp-ds-nonce;desc="`) {
+	st := rec.Header().Get("Server-Timing")
+	if !strings.Contains(st, `datastargostrictcsp-ds-nonce;desc="`) {
 		t.Errorf("expected nonce in Server-Timing header; got: %q", st)
+	}
+	if !strings.Contains(st, `datastargostrictcsp-nonce-attr;desc="nonce"`) {
+		t.Errorf("expected default nonce attr in Server-Timing header; got: %q", st)
 	}
 	if strings.Contains(body, "datastargostrictcsp-ds-nonce") {
 		t.Errorf("nonce should not appear in the document body; body:\n%s", body)
+	}
+}
+
+func TestMiddleware_WithNonce_CustomNonceAttr(t *testing.T) {
+	p := testPrecompiler(t)
+	p.NonceAttr = "data-ds-nonce"
+
+	handler := NonceMiddleware(p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonce := NonceFromContext(r.Context())
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<html><head></head><body>` +
+			`<div data-text="signalA" data-ds-nonce="` + nonce + `"></div>` +
+			`<div data-text="signalB" nonce="` + nonce + `"></div>` +
+			`</body></html>`))
+	})))
+
+	req := httptest.NewRequest("GET", "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	i := strings.Index(body, `src="`)
+	if i < 0 {
+		t.Fatalf("expected <script> for element matching custom nonce attr; body:\n%s", body)
+	}
+	i += 5
+	scriptURL := stdhtml.UnescapeString(body[i : i+strings.Index(body[i:], `"`)])
+	pu, err := url.Parse(scriptURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := p.verifyURL(pu.Query())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exprs []string
+	for _, e := range entries {
+		exprs = append(exprs, e.funcArgs...)
+	}
+	joined := strings.Join(exprs, " ")
+	if !strings.Contains(joined, "signalA") || strings.Contains(joined, "signalB") {
+		t.Errorf("only the data-ds-nonce element should be precompiled; compiled exprs: %q", joined)
+	}
+	if st := rec.Header().Get("Server-Timing"); !strings.Contains(st, `datastargostrictcsp-nonce-attr;desc="data-ds-nonce"`) {
+		t.Errorf("expected custom nonce attr in Server-Timing header; got: %q", st)
 	}
 }
 
@@ -182,7 +231,7 @@ func TestMiddleware_FragmentWithStolenPageNonce_DoesNotPrecompile(t *testing.T) 
 
 	handler := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(`<div data-text="stolenSignal" data-ds-nonce="` + pageNonce + `"></div>`))
+		w.Write([]byte(`<div data-text="stolenSignal" nonce="` + pageNonce + `"></div>`))
 	}))
 
 	req := httptest.NewRequest("GET", "/fragment", nil)
@@ -394,7 +443,7 @@ func TestScriptHandler_WithNonce_EmitsBloomAdd(t *testing.T) {
 		capturedNonce = NonceFromContext(r.Context())
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<html><head></head><body>` +
-			`<div data-text="x" data-ds-nonce="` + capturedNonce + `"></div>` +
+			`<div data-text="x" nonce="` + capturedNonce + `"></div>` +
 			`</body></html>`))
 	})))
 
@@ -506,7 +555,7 @@ func TestSSEMiddleware_PatchElementsWithStolenPageNonce_DoesNotPrecompile(t *tes
 	const pageNonce = "old-page-nonce"
 	const responseNonce = "current-response-nonce"
 	event := `event: datastar-patch-elements
-data: elements <div data-text="stolenSignal" data-ds-nonce="` + pageNonce + `"></div>
+data: elements <div data-text="stolenSignal" nonce="` + pageNonce + `"></div>
 
 `
 
