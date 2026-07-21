@@ -35,7 +35,7 @@ const pageNonce = navServerTiming?.find(
 // so it must be read via the el.nonce IDL property rather than getAttribute.
 const nonceAttrName =
   navServerTiming?.find((t) => t.name === "datastargostrictcsp-nonce-attr")
-    ?.description || "nonce";
+    ?.description ?? "nonce";
 const readElementNonce =
   nonceAttrName === "nonce"
     ? (el) => el.nonce
