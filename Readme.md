@@ -53,7 +53,7 @@ The signed URL reaches the client in one of three ways:
 ```html
 <script
   type="module"
-  src="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@0.13.0/dist/datastargostrictcsp-client.lite.min.js"
+  src="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@0.14.0/dist/datastargostrictcsp-client.lite.min.js"
 ></script>
 ```
 
