@@ -453,7 +453,10 @@ func (dw *detectWriter) flush() {
 	if len(entries) > 0 {
 		if urls, err := dw.p.buildSignedURLs(entries); err == nil {
 			dw.ResponseWriter.Header().Del("Content-Length")
-			if modified, ok := injectIntoHead(body, nonceMeta(dw.nonce), scriptTags(urls)); ok {
+			if modified, ok := injectIntoHead(body, scriptTags(urls)); ok {
+				if dw.nonce != "" {
+					dw.ResponseWriter.Header().Add("Server-Timing", serverTimingNonce(dw.nonce))
+				}
 				body = modified
 			} else {
 				// Fragment: one comment per URL, with the nonce on the first.
@@ -750,14 +753,18 @@ func buildJS(entries []precompileEntry, initMap bool) []byte {
 	return []byte(b.String())
 }
 
-// scriptTags renders one <script type="module" src="..."> tag per URL.
-func nonceMeta(nonce string) []byte {
-	if nonce == "" {
-		return nil
-	}
-	return []byte(`<meta name="datastargostrictcsp-ds-nonce" content="` + nonce + `">` + "\n")
+// serverTimingNonce renders the Server-Timing metric that carries the page
+// nonce to the client. The client reads it same-origin via
+// PerformanceNavigationTiming.serverTiming, which keeps the nonce out of the
+// DOM (a meta tag's content attribute would be exfiltratable via CSS attribute
+// selectors). serverTiming is only populated in secure contexts (HTTPS or
+// localhost); on plain HTTP the client never sees the nonce and its nonce
+// checks stay inactive.
+func serverTimingNonce(nonce string) string {
+	return `datastargostrictcsp-ds-nonce;desc="` + nonce + `"`
 }
 
+// scriptTags renders one <script type="module" src="..."> tag per URL.
 func scriptTags(urls []string) []byte {
 	var b bytes.Buffer
 	for i, u := range urls {
@@ -781,13 +788,11 @@ func looksLikeFullDocument(body []byte) bool {
 	return bytes.Contains(upper, []byte("<!DOCTYPE")) || bytes.Contains(upper, []byte("<HTML"))
 }
 
-// injectIntoHead inserts meta immediately before the first non-<meta> tag in
-// <head> (or before </head> if head is empty/all-meta), and inserts scripts
-// immediately before the first <script> tag in <head> (or before </head> if
-// there are none). Either slice may be nil. If no </head> is found but a
-// <body> tag is present, both are injected immediately before <body>.
+// injectIntoHead inserts scripts immediately before the first <script> tag in
+// <head> (or before </head> if there are none). If no </head> is found but a
+// <body> tag is present, scripts are injected immediately before <body>.
 // Returns (modified body, true) on success, (original body, false) otherwise.
-func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
+func injectIntoHead(body, scripts []byte) ([]byte, bool) {
 	// Without this heuristic check, every text/html response containing an HTML
 	// fragment would be fully scanned by the HTML tokenizer, which is wasteful.
 	if !looksLikeFullDocument(body) {
@@ -796,7 +801,6 @@ func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 	z := html.NewTokenizer(bytes.NewReader(body))
 	pos := 0
 	inHead := false
-	metaInsertPos := -1   // before first non-<meta> tag in head; falls back to </head>
 	scriptInsertPos := -1 // before first <script> tag in head; falls back to </head>
 	bodyPos := -1         // fallback injection point if no </head> found
 	for {
@@ -815,51 +819,36 @@ func injectIntoHead(body, meta, scripts []byte) ([]byte, bool) {
 				if bodyPos < 0 {
 					bodyPos = pos
 				}
-			default:
-				if inHead {
-					if metaInsertPos < 0 && string(name) != "meta" {
-						metaInsertPos = pos
-					}
-					if scriptInsertPos < 0 && string(name) == "script" {
-						scriptInsertPos = pos
-					}
+			case "script":
+				if inHead && scriptInsertPos < 0 {
+					scriptInsertPos = pos
 				}
 			}
 		case html.EndTagToken:
 			name, _ := z.TagName()
 			if string(name) == "head" {
-				if metaInsertPos < 0 {
-					metaInsertPos = pos // head was empty or contained only <meta> tags
-				}
 				if scriptInsertPos < 0 {
 					scriptInsertPos = pos // no <script> in head; fall back to before </head>
 				}
-				return splice(body, meta, metaInsertPos, scripts, scriptInsertPos), true
+				return splice(body, scripts, scriptInsertPos), true
 			}
 		}
 		pos += rawLen
 	}
 	// No </head> — fall back to injecting before <body>.
 	if bodyPos >= 0 {
-		return splice(body, meta, bodyPos, scripts, bodyPos), true
+		return splice(body, scripts, bodyPos), true
 	}
 	return body, false
 }
 
-// splice builds: body[:metaAt] + meta + body[metaAt:scriptsAt] + scripts + body[scriptsAt:]
-func splice(body, meta []byte, metaAt int, scripts []byte, scriptsAt int) []byte {
-	out := make([]byte, 0, len(body)+len(meta)+len(scripts)+2)
-	if len(meta) > 0 {
-		out = append(out, body[:metaAt]...)
-		out = append(out, '\n')
-		out = append(out, meta...)
-		out = append(out, body[metaAt:scriptsAt]...)
-	} else {
-		out = append(out, body[:scriptsAt]...)
-	}
+// splice builds: body[:at] + scripts + "\n" + body[at:]
+func splice(body, scripts []byte, at int) []byte {
+	out := make([]byte, 0, len(body)+len(scripts)+1)
+	out = append(out, body[:at]...)
 	out = append(out, scripts...)
 	out = append(out, '\n')
-	out = append(out, body[scriptsAt:]...)
+	out = append(out, body[at:]...)
 	return out
 }
 

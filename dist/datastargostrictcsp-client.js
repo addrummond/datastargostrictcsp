@@ -20,9 +20,15 @@ let nonceCheckActive = false;
 let currentPatchNonce = null; // set during each patch window for the MutationObserver
 const nonceMap = new WeakMap();
 
-const pageNonce = document.querySelector(
-  'meta[name="datastargostrictcsp-ds-nonce"]',
-)?.content;
+// The page nonce arrives in a Server-Timing response header rather than in
+// the DOM, so CSS attribute-selector exfiltration can't read it. serverTiming
+// is only populated in secure contexts (HTTPS or localhost); elsewhere the
+// nonce check stays inactive.
+const pageNonce = performance
+  .getEntriesByType("navigation")[0]
+  ?.serverTiming?.find(
+    (t) => t.name === "datastargostrictcsp-ds-nonce",
+  )?.description;
 if (pageNonce) {
   nonceMap.set(document.documentElement, pageNonce);
   nonceCheckActive = true;

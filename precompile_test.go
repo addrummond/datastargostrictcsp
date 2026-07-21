@@ -149,8 +149,11 @@ func TestMiddleware_WithNonce_OnlyMatchingElementsCompiled(t *testing.T) {
 	if !strings.Contains(body, "<script") {
 		t.Fatalf("expected <script> for matching nonce element; body:\n%s", body)
 	}
-	if !strings.Contains(body, `<meta name="datastargostrictcsp-ds-nonce"`) {
-		t.Errorf("expected datastargostrictcsp-ds-nonce meta tag in page; body:\n%s", body)
+	if st := rec.Header().Get("Server-Timing"); !strings.Contains(st, `datastargostrictcsp-ds-nonce;desc="`) {
+		t.Errorf("expected nonce in Server-Timing header; got: %q", st)
+	}
+	if strings.Contains(body, "datastargostrictcsp-ds-nonce") {
+		t.Errorf("nonce should not appear in the document body; body:\n%s", body)
 	}
 }
 
@@ -402,8 +405,9 @@ func TestScriptHandler_WithNonce_EmitsBloomAdd(t *testing.T) {
 	if !strings.Contains(page, `src="`) {
 		t.Fatal("no script tag found in page; body:\n" + page)
 	}
-	if !strings.Contains(page, `<meta name="datastargostrictcsp-ds-nonce"`) {
-		t.Errorf("expected datastargostrictcsp-ds-nonce meta tag in page; body:\n%s", page)
+	want := `datastargostrictcsp-ds-nonce;desc="` + capturedNonce + `"`
+	if st := rec.Header().Get("Server-Timing"); !strings.Contains(st, want) {
+		t.Errorf("expected %q in Server-Timing header; got: %q", want, st)
 	}
 }
 
@@ -569,58 +573,41 @@ func TestSSEMiddleware_MultipleEventsInOneBatch(t *testing.T) {
 }
 
 func TestInjectIntoHead(t *testing.T) {
-	meta := []byte(`<meta name="x" content="nonce">`)
 	scripts := []byte(`<script src="precompile.js"></script>`)
 
 	tests := []struct {
 		name             string
 		input            string
-		wantMetaBefore   string
-		wantMetaAfter    string
 		wantScriptBefore string
 		wantOK           bool
 	}{
 		{
-			name:             "meta and scripts both injected before first script in head",
+			name:             "scripts injected before first script in head",
 			input:            `<html><head><script src="client.js"></script></head><body></body></html>`,
-			wantMetaBefore:   `<script src="client.js">`,
 			wantScriptBefore: `<script src="client.js">`,
 			wantOK:           true,
 		},
 		{
-			name:             "scripts injected before first script, meta before first non-meta",
+			name:             "scripts injected before first script, after non-script head content",
 			input:            `<html><head><link rel="stylesheet" href="x.css"><script src="app.js"></script></head><body></body></html>`,
-			wantMetaBefore:   `<link rel="stylesheet"`,
 			wantScriptBefore: `<script src="app.js">`,
 			wantOK:           true,
 		},
 		{
-			name:             "meta inserted after existing meta tags, before first non-meta",
+			name:             "no script in head: inserted before </head>",
 			input:            `<html><head><meta charset="UTF-8"><title>T</title></head><body></body></html>`,
-			wantMetaAfter:    `<meta charset="UTF-8">`,
-			wantMetaBefore:   `<title>T</title>`,
 			wantScriptBefore: `</head>`,
 			wantOK:           true,
 		},
 		{
-			name:             "empty head: both inserted before </head>",
+			name:             "empty head: inserted before </head>",
 			input:            `<html><head></head><body></body></html>`,
-			wantMetaBefore:   `</head>`,
 			wantScriptBefore: `</head>`,
 			wantOK:           true,
 		},
 		{
-			name:             "head contains only meta tags: inserted before </head>",
-			input:            `<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"></head><body></body></html>`,
-			wantMetaAfter:    `<meta name="viewport" content="width=device-width">`,
-			wantMetaBefore:   `</head>`,
-			wantScriptBefore: `</head>`,
-			wantOK:           true,
-		},
-		{
-			name:             "no </head> but <body> present: both injected before <body>",
+			name:             "no </head> but <body> present: injected before <body>",
 			input:            `<html><body><p>hi</p></body></html>`,
-			wantMetaBefore:   `<body>`,
 			wantScriptBefore: `<body>`,
 			wantOK:           true,
 		},
@@ -637,7 +624,6 @@ func TestInjectIntoHead(t *testing.T) {
 		{
 			name:             "doctype triggers full-document detection",
 			input:            `<!DOCTYPE html><html><head></head><body></body></html>`,
-			wantMetaBefore:   `</head>`,
 			wantScriptBefore: `</head>`,
 			wantOK:           true,
 		},
@@ -645,7 +631,7 @@ func TestInjectIntoHead(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			out, ok := injectIntoHead([]byte(tc.input), meta, scripts)
+			out, ok := injectIntoHead([]byte(tc.input), scripts)
 			if ok != tc.wantOK {
 				t.Fatalf("ok=%v, want %v; output: %s", ok, tc.wantOK, out)
 			}
@@ -653,38 +639,15 @@ func TestInjectIntoHead(t *testing.T) {
 				return
 			}
 			s := string(out)
-			metaStr := string(meta)
-			scriptStr := string(scripts)
 
-			metaIdx := strings.Index(s, metaStr)
-			if metaIdx < 0 {
-				t.Fatalf("meta not found in output: %s", s)
-			}
-			scriptIdx := strings.Index(s, scriptStr)
+			scriptIdx := strings.Index(s, string(scripts))
 			if scriptIdx < 0 {
 				t.Fatalf("scripts not found in output: %s", s)
 			}
-
-			if tc.wantMetaBefore != "" {
-				if i := strings.Index(s, tc.wantMetaBefore); i < 0 {
-					t.Errorf("wantMetaBefore %q not found in output", tc.wantMetaBefore)
-				} else if metaIdx > i {
-					t.Errorf("meta appears after %q in output:\n%s", tc.wantMetaBefore, s)
-				}
-			}
-			if tc.wantMetaAfter != "" {
-				if i := strings.Index(s, tc.wantMetaAfter); i < 0 {
-					t.Errorf("wantMetaAfter %q not found in output", tc.wantMetaAfter)
-				} else if metaIdx < i+len(tc.wantMetaAfter) {
-					t.Errorf("meta appears before end of %q in output:\n%s", tc.wantMetaAfter, s)
-				}
-			}
-			if tc.wantScriptBefore != "" {
-				if i := strings.Index(s, tc.wantScriptBefore); i < 0 {
-					t.Errorf("wantScriptBefore %q not found in output", tc.wantScriptBefore)
-				} else if scriptIdx > i {
-					t.Errorf("scripts appear after %q in output:\n%s", tc.wantScriptBefore, s)
-				}
+			if i := strings.Index(s, tc.wantScriptBefore); i < 0 {
+				t.Errorf("wantScriptBefore %q not found in output", tc.wantScriptBefore)
+			} else if scriptIdx > i {
+				t.Errorf("scripts appear after %q in output:\n%s", tc.wantScriptBefore, s)
 			}
 		})
 	}

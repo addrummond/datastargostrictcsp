@@ -222,6 +222,8 @@ How to modify your app to use nonces:
 http.ListenAndServe(":8080", datastargostrictcsp.NonceMiddleware(pc.Middleware(mux)))
 ```
 
+The middleware delivers the page nonce to the client in a `Server-Timing` response header, which the client reads through the `PerformanceNavigationTiming` API. This keeps the nonce out of the DOM, where a CSS attribute selector could otherwise read it. Two deployment requirements follow: pages must be served in a secure context (HTTPS, or localhost during development), and any proxy or CDN in front of your app must not strip the `Server-Timing` header. If the client can't read the header, client-side nonce checks stay inactive (server-side nonce filtering still applies).
+
 **3.** Include a `Nonce` field in your template data and ensure that your templates add the required `data-ds-nonce` attributes.
 
 **4.** Pass the nonce when rendering HTML pages or fragments:
