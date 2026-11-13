@@ -1,7 +1,7 @@
 # datastar-go-strict-csp
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go&logoColor=white)
-![Datastar](https://img.shields.io/badge/Datastar-1.0.4-blueviolet?style=flat)
+![Datastar](https://img.shields.io/badge/Datastar-1.0.5-blueviolet?style=flat)
 [![Go Reference](https://pkg.go.dev/badge/github.com/addrummond/datastargostrictcsp.svg)](https://pkg.go.dev/github.com/addrummond/datastargostrictcsp)
 
 A Go package that makes [Datastar](https://data-star.dev/) compatible with a strict [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
@@ -53,7 +53,7 @@ The signed URL reaches the client in one of three ways:
 ```html
 <script
   type="module"
-  src="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@0.14.1/dist/datastargostrictcsp-client.lite.min.js"
+  src="https://cdn.jsdelivr.net/gh/addrummond/datastargostrictcsp@0.14.2/dist/datastargostrictcsp-client.lite.min.js"
 ></script>
 ```
 
